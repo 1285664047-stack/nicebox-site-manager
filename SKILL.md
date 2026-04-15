@@ -20,9 +20,10 @@ Authentication:
 Authorization: $AIBOX_API_KEY
 ```
 
-This skill provides 3 main capabilities:
+This skill provides 4 main capabilities:
 
 * Publish article
+* Publish product
 * View messages
 * Check site status
 
@@ -48,6 +49,36 @@ Options:
 * `--author`: Author name (optional)
 * `--cover`: Cover image URL (optional)
 * `--status`: `draft` or `publish` (default: `publish`)
+
+## Publish product
+
+Publish a product to your site.
+
+```bash
+python3 {baseDir}/scripts/publish_product.py \
+  --name "Smartphone X" \
+  --price 5999.99 \
+  --content "High-quality smartphone with advanced features" \
+  --images "https://example.com/image1.jpg" "https://example.com/image2.jpg" \
+  --status publish
+```
+
+Options:
+
+* `--name`: Product name (required)
+* `--price`: Product price (required, numeric)
+* `--content`: Product content (optional)
+* `--description`: Product description (optional)
+* `--category-id`: Product category ID (optional, numeric)
+* `--currency`: Currency code (default: CNY)
+* `--sort-order`: Sort order (optional, numeric)
+* `--status`: `draft` or `publish` (default: `publish`)
+* `--images`: Product image URLs (optional, multiple values allowed)
+* `--locale`: Locale (default: zh-CN)
+* `--filename`: Filename (optional)
+* `--seo-title`: SEO title (optional)
+* `--seo-keywords`: SEO keywords (optional)
+* `--seo-description`: SEO description (optional)
 
 ## View messages
 
@@ -94,6 +125,7 @@ export AIBOX_BASE_URL="https://ai.nicebox.cn/api/openclaw"
 This skill assumes the following API paths:
 
 * `POST /article/publish`
+* `POST /product/publish`
 * `GET /message/getlist`
 * `GET /site/status`
 
