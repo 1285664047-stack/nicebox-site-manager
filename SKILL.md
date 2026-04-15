@@ -77,8 +77,7 @@ Options:
 * `--locale`: Locale (default: zh-CN)
 * `--filename`: Filename (optional)
 * `--seo-title`: SEO title (optional)
-* `--seo-keywords`: SEO keywords (optional)
-* `--seo-description`: SEO description (optional)
+* `--keywords`: Keywords (optional)
 
 ## View messages
 

@@ -63,8 +63,7 @@ def parse_args():
     parser.add_argument("--locale", default="zh-CN", help="Locale")
     parser.add_argument("--filename", default="", help="Filename")
     parser.add_argument("--seo-title", default="", help="SEO title")
-    parser.add_argument("--seo-keywords", default="", help="SEO keywords")
-    parser.add_argument("--seo-description", default="", help="SEO description")
+    parser.add_argument("--keywords", default="", help="Keywords")
     parser.add_argument("--base-url", default=get_env("AIBOX_BASE_URL", DEFAULT_BASE_URL), help="API base URL")
     return parser.parse_args()
 
@@ -90,8 +89,7 @@ def main():
         "locale": args.locale,
         "filename": args.filename,
         "seo_title": args.seo_title,
-        "seo_keywords": args.seo_keywords,
-        "seo_description": args.seo_description,
+        "keywords": args.keywords,
     }
 
     # 去掉空字段，避免某些后端严格校验
