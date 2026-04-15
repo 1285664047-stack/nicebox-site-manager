@@ -11,7 +11,7 @@ Manage AI-built websites through the NiceBox OpenClaw API.
 Base URL:
 
 ```bash
-https://ai.nicebox.cn/api/openclaw
+http://aidev.nicebox.cn/api/openclaw
 ```
 
 Authentication:
@@ -20,10 +20,11 @@ Authentication:
 Authorization: $AIBOX_API_KEY
 ```
 
-This skill provides 4 main capabilities:
+This skill provides 5 main capabilities:
 
 * Publish article
 * Publish product
+* List product categories
 * View messages
 * Check site status
 
@@ -79,6 +80,23 @@ Options:
 * `--seo-title`: SEO title (optional)
 * `--keywords`: Keywords (optional)
 
+## List product categories
+
+List product categories from your site.
+
+```bash
+python3 {baseDir}/scripts/list_product_categories.py
+python3 {baseDir}/scripts/list_product_categories.py --parent-id 1
+python3 {baseDir}/scripts/list_product_categories.py --keyword "electronics"
+python3 {baseDir}/scripts/list_product_categories.py --locale "zh-CN"
+```
+
+Options:
+
+* `--keyword`: Search keyword (optional)
+* `--parent-id`: Parent category ID (optional, numeric)
+* `--locale`: Locale (optional)
+
 ## View messages
 
 List messages, inquiries, or leads from your site.
@@ -116,7 +134,7 @@ export AIBOX_API_KEY="your_api_key"
 Optional override for base URL:
 
 ```bash
-export AIBOX_BASE_URL="https://ai.nicebox.cn/api/openclaw"
+export AIBOX_BASE_URL="http://aidev.nicebox.cn/api/openclaw"
 ```
 
 ## Default endpoint assumptions
@@ -125,6 +143,7 @@ This skill assumes the following API paths:
 
 * `POST /article/publish`
 * `POST /product/publish`
+* `GET /product/categories`
 * `GET /message/getlist`
 * `GET /site/status`
 

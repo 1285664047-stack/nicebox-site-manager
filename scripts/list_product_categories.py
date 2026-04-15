@@ -11,7 +11,7 @@ import urllib.error
 
 
 DEFAULT_BASE_URL = "http://aidev.nicebox.cn/api/openclaw"
-ENDPOINT_LIST_MESSAGES = "/message/getlist"
+ENDPOINT_LIST_CATEGORIES = "/product/categories"
 
 
 def eprint(*args, **kwargs):
@@ -53,10 +53,10 @@ def http_get(url: str, api_key: str, timeout: int = 30):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="List messages from NiceBox OpenClaw API")
-    parser.add_argument("--page", type=int, default=1, help="Page number")
-    parser.add_argument("--page-size", type=int, default=20, help="Items per page")
-    parser.add_argument("--is-read", choices=["0", "1"], default=None, help="0 unread, 1 read")
+    parser = argparse.ArgumentParser(description="List product categories from NiceBox OpenClaw API")
+    parser.add_argument("--keyword", default="", help="Search keyword")
+    parser.add_argument("--parent-id", type=int, default=0, help="Parent category ID")
+    parser.add_argument("--locale", default="", help="Locale")
     parser.add_argument("--base-url", default=get_env("AIBOX_BASE_URL", DEFAULT_BASE_URL), help="API base URL")
     return parser.parse_args()
 
@@ -70,13 +70,12 @@ def main():
         sys.exit(2)
 
     params = {
-        "page": args.page,
-        "page_size": args.page_size,
+        "keyword": args.keyword,
+        "parent_id": args.parent_id,
+        "locale": args.locale,
     }
-    if args.is_read is not None:
-        params["is_read"] = args.is_read
 
-    url = build_url(args.base_url, ENDPOINT_LIST_MESSAGES, params)
+    url = build_url(args.base_url, ENDPOINT_LIST_CATEGORIES, params)
 
     try:
         status_code, raw = http_get(url, api_key)
