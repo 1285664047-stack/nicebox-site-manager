@@ -20,11 +20,13 @@ Authentication:
 Authorization: $AIBOX_API_KEY
 ```
 
-This skill provides 5 main capabilities:
+This skill provides 7 main capabilities:
 
 * Publish article
+* List article categories
 * Publish product
 * List product categories
+* List site languages
 * View messages
 * Check site status
 
@@ -50,6 +52,21 @@ Options:
 * `--author`: Author name (optional)
 * `--cover`: Cover image URL (optional)
 * `--status`: `draft` or `publish` (default: `publish`)
+
+## List article categories
+
+List article categories from your site.
+
+```bash
+python3 {baseDir}/scripts/list_article_categories.py
+python3 {baseDir}/scripts/list_article_categories.py --keyword "technology"
+python3 {baseDir}/scripts/list_article_categories.py --locale "zh-CN"
+```
+
+Options:
+
+* `--keyword`: Search keyword (optional)
+* `--locale`: Locale (optional)
 
 ## Publish product
 
@@ -96,6 +113,16 @@ Options:
 * `--keyword`: Search keyword (optional)
 * `--locale`: Locale (optional)
 
+## List site languages
+
+List available languages for your site.
+
+```bash
+python3 {baseDir}/scripts/list_site_languages.py
+```
+
+No additional options required.
+
 ## View messages
 
 List messages, inquiries, or leads from your site.
@@ -141,8 +168,10 @@ export AIBOX_BASE_URL="http://aidev.nicebox.cn/api/openclaw"
 This skill assumes the following API paths:
 
 * `POST /article/publish`
+* `GET /article/getCategories`
 * `POST /product/publish`
-* `GET /product/categories`
+* `GET /product/getCategories`
+* `GET /sitepages/getLanguageList`
 * `GET /message/getlist`
 * `GET /site/status`
 

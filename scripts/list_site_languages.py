@@ -11,7 +11,7 @@ import urllib.error
 
 
 DEFAULT_BASE_URL = "http://aidev.nicebox.cn/api/openclaw"
-ENDPOINT_LIST_CATEGORIES = "/product/getCategories"
+ENDPOINT_LIST_LANGUAGES = "/sitepages/getLanguageList"
 
 
 def eprint(*args, **kwargs):
@@ -53,9 +53,7 @@ def http_get(url: str, api_key: str, timeout: int = 30):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="List product categories from NiceBox OpenClaw API")
-    parser.add_argument("--keyword", default="", help="Search keyword")
-    parser.add_argument("--locale", default="", help="Locale")
+    parser = argparse.ArgumentParser(description="List site languages from NiceBox OpenClaw API")
     parser.add_argument("--base-url", default=get_env("AIBOX_BASE_URL", DEFAULT_BASE_URL), help="API base URL")
     return parser.parse_args()
 
@@ -68,12 +66,7 @@ def main():
         eprint("Error: AIBOX_API_KEY is not set")
         sys.exit(2)
 
-    params = {
-        "keyword": args.keyword,
-        "locale": args.locale,
-    }
-
-    url = build_url(args.base_url, ENDPOINT_LIST_CATEGORIES, params)
+    url = build_url(args.base_url, ENDPOINT_LIST_LANGUAGES)
 
     try:
         status_code, raw = http_get(url, api_key)
