@@ -11,7 +11,7 @@ import urllib.error
 
 
 DEFAULT_BASE_URL = "http://aidev.nicebox.cn/api/openclaw"
-ENDPOINT_LIST_LANGUAGES = "/sitepages/getLanguageList"
+ENDPOINT_LIST_LANGUAGES = "/site_pages/getLanguageList"
 
 
 def eprint(*args, **kwargs):

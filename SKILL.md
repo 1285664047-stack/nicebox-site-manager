@@ -171,7 +171,7 @@ This skill assumes the following API paths:
 * `GET /article/getCategories`
 * `POST /product/publish`
 * `GET /product/getCategories`
-* `GET /sitepages/getLanguageList`
+* `GET /site_pages/getLanguageList`
 * `GET /message/getlist`
 * `GET /site/status`
 
