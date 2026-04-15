@@ -94,7 +94,6 @@ python3 {baseDir}/scripts/list_product_categories.py --locale "zh-CN"
 Options:
 
 * `--keyword`: Search keyword (optional)
-* `--parent-id`: Parent category ID (optional, numeric)
 * `--locale`: Locale (optional)
 
 ## View messages
