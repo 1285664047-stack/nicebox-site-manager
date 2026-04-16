@@ -8,17 +8,15 @@ import urllib.request
 
 BASE_URL = os.environ.get("AIBOX_BASE_URL", "http://aidev.nicebox.cn/api/openclaw")
 API_KEY = os.environ.get("AIBOX_API_KEY")
-ENDPOINT = "/ai_tools/guideDialogue"
+ENDPOINT = "/ai_tools/guideCollect"
 
 
-def request_api(message="", session_id=""):
+def request_api(session_id):
     url = BASE_URL + ENDPOINT
 
-    payload = {}
-    if message:
-        payload["message"] = message
-    if session_id:
-        payload["session_id"] = session_id
+    payload = {
+        "session": session_id
+    }
 
     data = json.dumps(payload).encode("utf-8")
 
@@ -39,18 +37,13 @@ def request_api(message="", session_id=""):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--message", default="")
-    parser.add_argument("--session-id", default="")
+    parser.add_argument("--session-id", required=True)
     args = parser.parse_args()
 
-    res = request_api(args.message, args.session_id)
-
-    data = res.get("data", {})
+    res = request_api(args.session_id)
 
     print(json.dumps({
-        "session_id": data.get("session"),
-        "reply": data.get("message"),
-        "is_complete": data.get("is_complete", False)
+        "summary": res.get("data", {}).get("summary", "")
     }, ensure_ascii=False))
 
 
