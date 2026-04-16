@@ -90,7 +90,7 @@ def start_guide_dialogue(base_url, api_key):
                         return False, "对话已退出", ""
                     
                     # 发送用户输入
-                    data = {"message": user_input, "session": session}
+                    data = {"message": user_input, "session_id": session}
                     status_code, raw = http_post(url, api_key, data)
                     
                     if 200 <= status_code < 300:

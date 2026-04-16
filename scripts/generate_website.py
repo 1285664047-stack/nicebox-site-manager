@@ -132,7 +132,7 @@ def start_guide_dialogue(base_url, api_key):
                     user_input = input("You: ")
                     
                     # 发送用户输入
-                    data = json.dumps({"message": user_input, "session": session}).encode('utf-8')
+                    data = json.dumps({"message": user_input, "session_id": session}).encode('utf-8')
                     req = urllib.request.Request(
                         url=url,
                         method="POST",
