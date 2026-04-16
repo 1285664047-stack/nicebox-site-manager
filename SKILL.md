@@ -126,85 +126,47 @@ No additional options required.
 
 ## Generate website
 
-Generate or regenerate website with AI assistance through multi-turn dialogue.
+Generate or regenerate a website through AI-guided multi-turn dialogue.
 
 ### Process flow:
 1. Check if site languages exist
-2. If languages exist, prompt for initialization (clears existing content)
+2. If languages exist, prompt user whether to initialize the site (clears existing pages, products, articles, messages)
 3. Initialize site if requested
-4. Start multi-turn guide dialogue to collect website information (AI will ask questions about site name, industry, style, etc.)
-5. Show final summary and generate website
+4. Start multi-turn dialogue to collect website information
+5. Generate summary and confirm with user
+6. Generate website based on collected information
 
 ```bash
 python3 {baseDir}/scripts/generate_website.py
 ```
 
 ### How it works:
-1. The script will start a conversation with AI
-2. AI will ask questions about your website requirements
-3. You can respond to each question
-4. After all questions are answered, AI will generate a summary of your requirements
-5. The website will be generated based on the collected information
+1. The script will check if site languages exist
+2. If languages exist, ask if user wants to initialize (clear existing content)
+3. If user confirms initialization, call initialize API
+4. Start multi-turn dialogue to collect website information:
+   - Company/Website name (can skip)
+   - Industry (can skip)
+   - Business scope (can skip)
+   - Business features (can skip)
+   - Culture and philosophy (can skip)
+   - Core advantages (can skip)
+   - Contact phone (can skip)
+   - Contact email (can skip)
+   - Company address (can skip)
+   - Logo (can skip)
+   - Visual style (can skip)
+5. After collection, show summary for confirmation
+6. If user confirms, generate the website
 
 ### Tips:
-- Be specific in your answers to get the best results
-- You can type 'exit' at any time to quit the dialogue
-- The entire process may take several minutes to complete
+- Each question can be skipped by typing "skip" or pressing Enter directly
+- Type "finish" or "end" at any time to finish dialogue and generate summary
+- Type "exit" to quit the dialogue
+- Be specific in your answers for better results
 
-## AI Website Generator
-
-This skill helps users generate websites through AI-guided dialogue.
-
-### Available Tools
-1. **guide_dialogue**
-
-   Start or continue guided dialogue to collect website requirements.
-
-   ```bash
-   python3 {baseDir}/scripts/guide_dialogue.py \
-     --message "I want a lawyer website" \
-     --session-id ""
-   ```
-
-   **Options:**
-   - `--message`: User input message (optional for first call)
-   - `--session-id`: Session ID from previous step (empty for first call)
-
-2. **guide_collect**
-
-   Summarize collected website requirements.
-
-   ```bash
-   python3 {baseDir}/scripts/guide_collect.py \
-     --session-id "xxx"
-   ```
-
-3. **generate_website**
-
-   Generate website based on collected requirements.
-
-   ```bash
-   python3 {baseDir}/scripts/generate_website.py \
-     --session-id "xxx"
-   ```
-
-### Workflow (VERY IMPORTANT)
-
-When user wants to create a website:
-
-1. ALWAYS start with `guide_dialogue`
-2. Continue calling `guide_dialogue` until `is_complete = true`
-3. When complete:
-   - Call `guide_collect`
-   - Show summary to user
-   - Then automatically call `generate_website`
-   - Inform user that website is being generated
-
-### Rules
-- Always keep and reuse `session_id`
-- Never skip `guide_dialogue` unless user provides full structured info
-- Never call `generate_website` before `guide_collect`
-- Do not invent website data — always rely on collected info
+### Options:
+* `--session-id`: Session ID for continuing previous dialogue (optional)
 
 ## View messages
 
@@ -258,7 +220,7 @@ This skill assumes the following API paths:
 * `POST /template/initializeData`
 * `POST /ai_tools/guideDialogue`
 * `POST /ai_tools/guideCollect`
-* `GET /ai_tools/getGuideStyleList`
+* `POST /ai_tools/generateWebsite`
 * `GET /message/getlist`
 * `GET /site/status`
 
