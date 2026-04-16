@@ -191,9 +191,9 @@ This skill assumes the following API paths:
 * `GET /product/getCategories`
 * `GET /site_pages/getLanguageList`
 * `POST /template/initializeData`
-* `POST /aitools/guideDialogue`
-* `POST /aitools/guideCollect`
-* `GET /aitools/getGuideStyleList`
+* `POST /ai_tools/guideDialogue`
+* `POST /ai_tools/guideCollect`
+* `GET /ai_tools/getGuideStyleList`
 * `GET /message/getlist`
 * `GET /site/status`
 

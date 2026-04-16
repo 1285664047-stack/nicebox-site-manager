@@ -13,8 +13,8 @@ import urllib.error
 DEFAULT_BASE_URL = "http://aidev.nicebox.cn/api/openclaw"
 ENDPOINT_LIST_LANGUAGES = "/site_pages/getLanguageList"
 ENDPOINT_INITIALIZE_SITE = "/template/initializeData"
-ENDPOINT_GUIDE_DIALOGUE = "/aitools/guideDialogue"
-ENDPOINT_GUIDE_COLLECT = "/aitools/guideCollect"
+ENDPOINT_GUIDE_DIALOGUE = "/ai_tools/guideDialogue"
+ENDPOINT_GUIDE_COLLECT = "/ai_tools/guideCollect"
 
 
 def eprint(*args, **kwargs):
