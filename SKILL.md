@@ -126,7 +126,7 @@ No additional options required.
 
 ## Generate website
 
-Generate or regenerate a website through AI-guided multi-turn dialogue.
+Generate or regenerate a website through multi-turn dialogue.
 
 ### Process flow:
 1. Check if site languages exist
@@ -154,19 +154,18 @@ python3 {baseDir}/scripts/generate_website.py
    - Contact phone (can skip)
    - Contact email (can skip)
    - Company address (can skip)
-   - Logo (can skip)
+   - Logo URL (can skip)
    - Visual style (can skip)
 5. After collection, show summary for confirmation
 6. If user confirms, generate the website
 
 ### Tips:
 - Each question can be skipped by typing "skip" or pressing Enter directly
-- Type "finish" or "end" at any time to finish dialogue and generate summary
+- Type "finish" or "end" at any time to finish dialogue
 - Type "exit" to quit the dialogue
 - Be specific in your answers for better results
 
-### Options:
-* `--session-id`: Session ID for continuing previous dialogue (optional)
+No additional options required.
 
 ## View messages
 
@@ -218,8 +217,6 @@ This skill assumes the following API paths:
 * `GET /product/getCategories`
 * `GET /site_pages/getLanguageList`
 * `POST /template/initializeData`
-* `POST /ai_tools/guideDialogue`
-* `POST /ai_tools/guideCollect`
 * `POST /ai_tools/generateWebsite`
 * `GET /message/getlist`
 * `GET /site/status`
