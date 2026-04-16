@@ -110,25 +110,91 @@ def initialize_site(base_url, api_key):
 
 
 def start_guide_dialogue(base_url, api_key):
-    """启动引导对话"""
+    """启动引导对话（多轮交互）"""
     url = build_url(base_url, ENDPOINT_GUIDE_DIALOGUE)
+    session = ""
+    
     try:
+        # 初始请求
         status_code, raw = http_post(url, api_key)
         if 200 <= status_code < 300:
-            return True, "引导对话已启动"
+            parsed = json.loads(raw)
+            if parsed.get('code') == 200:
+                session = parsed.get('data', {}).get('session', '')
+                message = parsed.get('data', {}).get('message', '')
+                is_complete = parsed.get('data', {}).get('is_complete', False)
+                
+                eprint(f"AI: {message}")
+                
+                # 多轮交互
+                while not is_complete:
+                    # 获取用户输入
+                    user_input = input("You: ")
+                    
+                    # 发送用户输入
+                    data = json.dumps({"message": user_input, "session": session}).encode('utf-8')
+                    req = urllib.request.Request(
+                        url=url,
+                        method="POST",
+                        headers={
+                            "Authorization": api_key,
+                            "Accept": "application/json",
+                            "Content-Type": "application/json",
+                            "User-Agent": "nicebox-openclaw-skill/1.0",
+                        },
+                        data=data
+                    )
+                    
+                    with urllib.request.urlopen(req) as resp:
+                        raw = resp.read().decode("utf-8", errors="replace")
+                        parsed = json.loads(raw)
+                        if parsed.get('code') == 200:
+                            session = parsed.get('data', {}).get('session', session)
+                            message = parsed.get('data', {}).get('message', '')
+                            is_complete = parsed.get('data', {}).get('is_complete', False)
+                            eprint(f"AI: {message}")
+                        else:
+                            return False, f"引导对话失败: {parsed.get('message', '未知错误')}"
+                
+                return True, "引导对话完成", session
+            else:
+                return False, parsed.get('message', '引导对话失败')
         return False, f"HTTP错误: {status_code}"
     except Exception as e:
-        return False, f"引导对话失败: {e}"
+        return False, f"引导对话失败: {e}", ""
 
-
-def collect_guide_info(base_url, api_key):
+def collect_guide_info(base_url, api_key, session):
     """收集引导对话信息"""
     url = build_url(base_url, ENDPOINT_GUIDE_COLLECT)
     try:
-        status_code, raw = http_post(url, api_key)
-        if 200 <= status_code < 300:
-            return True, "信息汇总完成"
-        return False, f"HTTP错误: {status_code}"
+        # 发送会话ID
+        data = json.dumps({"session": session}).encode('utf-8')
+        req = urllib.request.Request(
+            url=url,
+            method="POST",
+            headers={
+                "Authorization": api_key,
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "User-Agent": "nicebox-openclaw-skill/1.0",
+            },
+            data=data
+        )
+        
+        with urllib.request.urlopen(req) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            status_code = resp.getcode()
+            if 200 <= status_code < 300:
+                parsed = json.loads(raw)
+                if parsed.get('code') == 200:
+                    summary = parsed.get('data', {}).get('summary', '')
+                    eprint("\n=== 网站信息汇总 ===")
+                    eprint(summary)
+                    eprint("===================")
+                    return True, "信息汇总完成"
+                else:
+                    return False, parsed.get('message', '信息汇总失败')
+            return False, f"HTTP错误: {status_code}"
     except Exception as e:
         return False, f"信息汇总失败: {e}"
 
@@ -173,7 +239,10 @@ def main():
 
     # 3. 启动引导对话收集网站信息
     eprint("\n步骤4: 启动引导对话，收集网站信息...")
-    success, message = start_guide_dialogue(args.base_url, api_key)
+    eprint("AI 将逐步询问网站需求，请根据提示回答。")
+    eprint("输入 'exit' 可以退出对话。")
+    eprint("======================================")
+    success, message, session = start_guide_dialogue(args.base_url, api_key)
     eprint(f"引导对话结果: {message}")
     if not success:
         eprint("引导对话失败，退出流程")
@@ -181,7 +250,7 @@ def main():
 
     # 4. 显示最后整理的汇总内容
     eprint("\n步骤5: 整理汇总内容...")
-    success, message = collect_guide_info(args.base_url, api_key)
+    success, message = collect_guide_info(args.base_url, api_key, session)
     eprint(f"汇总结果: {message}")
     if not success:
         eprint("汇总失败，退出流程")

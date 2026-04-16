@@ -126,20 +126,30 @@ No additional options required.
 
 ## Generate website
 
-Generate or regenerate website with AI assistance.
+Generate or regenerate website with AI assistance through multi-turn dialogue.
 
 ### Process flow:
 1. Check if site languages exist
 2. If languages exist, prompt for initialization (clears existing content)
 3. Initialize site if requested
-4. Start guide dialogue to collect website information
+4. Start multi-turn guide dialogue to collect website information (AI will ask questions about site name, industry, style, etc.)
 5. Show final summary and generate website
 
 ```bash
 python3 {baseDir}/scripts/generate_website.py
 ```
 
-No additional options required.
+### How it works:
+1. The script will start a conversation with AI
+2. AI will ask questions about your website requirements
+3. You can respond to each question
+4. After all questions are answered, AI will generate a summary of your requirements
+5. The website will be generated based on the collected information
+
+### Tips:
+- Be specific in your answers to get the best results
+- You can type 'exit' at any time to quit the dialogue
+- The entire process may take several minutes to complete
 
 ## View messages
 
