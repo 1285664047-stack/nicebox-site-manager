@@ -20,13 +20,14 @@ Authentication:
 Authorization: $AIBOX_API_KEY
 ```
 
-This skill provides 7 main capabilities:
+This skill provides 8 main capabilities:
 
 * Publish article
 * List article categories
 * Publish product
 * List product categories
 * List site languages
+* Generate website
 * View messages
 * Check site status
 
@@ -123,6 +124,23 @@ python3 {baseDir}/scripts/list_site_languages.py
 
 No additional options required.
 
+## Generate website
+
+Generate or regenerate website with AI assistance.
+
+### Process flow:
+1. Check if site languages exist
+2. If languages exist, prompt for initialization (clears existing content)
+3. Initialize site if requested
+4. Start guide dialogue to collect website information
+5. Show final summary and generate website
+
+```bash
+python3 {baseDir}/scripts/generate_website.py
+```
+
+No additional options required.
+
 ## View messages
 
 List messages, inquiries, or leads from your site.
@@ -172,6 +190,10 @@ This skill assumes the following API paths:
 * `POST /product/publish`
 * `GET /product/getCategories`
 * `GET /site_pages/getLanguageList`
+* `POST /template/initializeData`
+* `POST /aitools/guideDialogue`
+* `POST /aitools/guideCollect`
+* `GET /aitools/getGuideStyleList`
 * `GET /message/getlist`
 * `GET /site/status`
 
