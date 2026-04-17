@@ -126,13 +126,14 @@ No additional options required.
 
 ## Generate website
 
-Generate or regenerate a website through multi-turn dialogue.
+Generate or regenerate a website through AI-guided multi-turn dialogue.
+**AI asks questions, user answers** - not AI auto-answering.
 
 ### Process flow:
 1. Check if site languages exist
 2. If languages exist, prompt user whether to initialize the site (clears existing pages, products, articles, messages)
 3. Initialize site if requested
-4. Start multi-turn dialogue to collect website information
+4. Start multi-turn dialogue - AI asks questions, user answers one by one
 5. Generate summary and confirm with user
 6. Generate website based on collected information
 
@@ -144,26 +145,37 @@ python3 {baseDir}/scripts/generate_website.py
 1. The script will check if site languages exist
 2. If languages exist, ask if user wants to initialize (clear existing content)
 3. If user confirms initialization, call initialize API
-4. Start multi-turn dialogue to collect website information:
-   - Company/Website name (can skip)
-   - Industry (can skip)
-   - Business scope (can skip)
-   - Business features (can skip)
-   - Culture and philosophy (can skip)
-   - Core advantages (can skip)
-   - Contact phone (can skip)
-   - Contact email (can skip)
-   - Company address (can skip)
-   - Logo URL (can skip)
-   - Visual style (can skip)
-5. After collection, show summary for confirmation
-6. If user confirms, generate the website
+4. Start multi-turn dialogue - AI asks questions one by one:
+   - Company/Website name
+   - Industry
+   - Business scope
+   - Business features
+   - Culture and philosophy
+   - Core advantages
+   - Contact phone
+   - Contact email
+   - Company address
+   - Logo URL
+   - Visual style
+5. User can:
+   - Answer each question in detail
+   - Type 'skip' or 's' to skip a question (recorded as unfilled)
+   - Type 'finish' or 'end' to end dialogue early and generate summary
+   - Type 'exit' to quit at any time
+6. After all questions or user finishes, show summary for confirmation
+7. If user confirms, generate the website
+
+### User commands:
+- **Answer normally**: Type your answer and press Enter
+- **Skip question**: Type 'skip' or '跳过' to skip the current question
+- **Finish dialogue**: Type 'finish' or '结束' to end dialogue and generate summary
+- **Exit**: Type 'exit' or '退出' to quit
 
 ### Tips:
-- Each question can be skipped by typing "skip" or pressing Enter directly
-- Type "finish" or "end" at any time to finish dialogue
-- Type "exit" to quit the dialogue
-- Be specific in your answers for better results
+- Each question includes example hints to help user answer
+- If user doesn't answer and doesn't skip, the question will be asked again
+- Skipped questions are recorded as "未填写" (not filled)
+- After summary, user can confirm or cancel generation
 
 No additional options required.
 
