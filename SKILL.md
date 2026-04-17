@@ -127,15 +127,16 @@ No additional options required.
 ## Generate website
 
 Generate or regenerate a website through AI-guided multi-turn dialogue.
-**AI asks questions, user answers** - not AI auto-answering.
+**All answers are manually entered by the customer** - AI only asks questions, never auto-answers.
 
 ### Process flow:
 1. Check if site languages exist
 2. If languages exist, prompt user whether to initialize the site (clears existing pages, products, articles, messages)
 3. Initialize site if requested
-4. Start multi-turn dialogue - AI asks questions, user answers one by one
+4. Start multi-turn dialogue - AI asks questions, customer manually answers one by one
 5. Generate summary and confirm with user
-6. Generate website based on collected information
+6. Call `getCompanyInfo` API to get company info text
+7. Call `generateWebsite` API to generate website
 
 ```bash
 python3 {baseDir}/scripts/generate_website.py
@@ -157,25 +158,28 @@ python3 {baseDir}/scripts/generate_website.py
    - Company address
    - Logo URL
    - Visual style
-5. User can:
-   - Answer each question in detail
-   - Type 'skip' or 's' to skip a question (recorded as unfilled)
-   - Type 'finish' or 'end' to end dialogue early and generate summary
-   - Type 'exit' to quit at any time
+5. **For each question:**
+   - AI displays the question and example
+   - Customer types their answer manually and presses Enter
+   - AI cannot auto-answer - all answers must come from customer input
+   - Customer can skip questions or exit at any time
 6. After all questions or user finishes, show summary for confirmation
-7. If user confirms, generate the website
+7. If user confirms:
+   - Call `POST /ai/getCompanyInfo` with collected data
+   - Use returned info as requirement
+   - Call `POST /ai_tools/generateWebsite` to generate website
 
 ### User commands:
-- **Answer normally**: Type your answer and press Enter
+- **Answer normally**: Type your answer and press Enter (customer must provide their own answer)
 - **Skip question**: Type 'skip' or '跳过' to skip the current question
 - **Finish dialogue**: Type 'finish' or '结束' to end dialogue and generate summary
 - **Exit**: Type 'exit' or '退出' to quit
 
-### Tips:
-- Each question includes example hints to help user answer
-- If user doesn't answer and doesn't skip, the question will be asked again
-- Skipped questions are recorded as "未填写" (not filled)
-- After summary, user can confirm or cancel generation
+### Important:
+- **All answers are manually entered by the customer** - AI only asks questions
+- AI never auto-answers or generates answers for the customer
+- Each question requires the customer to type their own response
+- If customer doesn't answer, the question will be asked again until answered or skipped
 
 No additional options required.
 
@@ -229,6 +233,7 @@ This skill assumes the following API paths:
 * `GET /product/getCategories`
 * `GET /site_pages/getLanguageList`
 * `POST /template/initializeData`
+* `POST /ai/getCompanyInfo`
 * `POST /ai_tools/generateWebsite`
 * `GET /message/getlist`
 * `GET /site/status`

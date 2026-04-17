@@ -13,8 +13,22 @@ API_KEY = os.environ.get("AIBOX_API_KEY", "")
 
 ENDPOINT_LANGUAGE_LIST = f"{BASE_URL}/site_pages/getLanguageList"
 ENDPOINT_INITIALIZE = f"{BASE_URL}/template/initializeData"
-ENDPOINT_ASK_QUESTION = f"{BASE_URL}/ai_tools/askQuestion"
+ENDPOINT_GET_COMPANY_INFO = f"{BASE_URL}/ai/getCompanyInfo"
 ENDPOINT_GENERATE_WEBSITE = f"{BASE_URL}/ai_tools/generateWebsite"
+
+QUESTIONS = [
+    {"field": "company_name", "question": "请告诉我您的公司名称或想创建的网站名称是什么？", "example": "某某科技有限公司 或 某某律师事务所官网"},
+    {"field": "industry", "question": "您从事哪个行业？", "example": "科技、教育、医疗、餐饮、零售、金融、法律等"},
+    {"field": "business_scope", "question": "请描述您的业务范围？", "example": "提供软件开发、网站建设APP开发等技术服务"},
+    {"field": "business_features", "question": "您的业务有哪些特色或亮点？", "example": "20年行业经验、专业团队、售后保障等"},
+    {"field": "culture", "question": "请介绍一下您的企业文化或理念？", "example": "客户至上、创新进取、诚信为本"},
+    {"field": "advantages", "question": "您的核心竞争优势是什么？", "example": "技术领先、价格合理、服务周到"},
+    {"field": "phone", "question": "请提供您的联系电话？", "example": "400-888-8888 或 138-0000-0000"},
+    {"field": "email", "question": "请提供您的联系邮箱？", "example": "contact@example.com"},
+    {"field": "address", "question": "请提供您的公司地址？", "example": "北京市朝阳区某某大厦10层"},
+    {"field": "logo", "question": "您有logo吗？如果有，请提供logo图片的URL地址？", "example": "https://example.com/logo.png (如果没有可跳过)"},
+    {"field": "style", "question": "您希望网站采用什么视觉风格？", "example": "简约现代、专业商务、创意时尚、温馨亲切等"},
+]
 
 
 def check_site_languages(api_key=None):
@@ -92,8 +106,8 @@ def initialize_site(api_key=None):
         return {"code": 1, "msg": str(e)}
 
 
-def ask_question(question_index, collected, user_answer="", action="get_question", api_key=None):
-    """Call askQuestion API - AI asks, user answers"""
+def get_company_info(collected, api_key=None):
+    """Call getCompanyInfo API to get company info text"""
     if api_key is None:
         api_key = API_KEY
 
@@ -107,10 +121,17 @@ def ask_question(question_index, collected, user_answer="", action="get_question
     }
 
     payload = {
-        "question_index": question_index,
-        "collected": json.dumps(collected, ensure_ascii=False),
-        "user_answer": user_answer,
-        "action": action
+        "company_name": collected.get("company_name", ""),
+        "industry": collected.get("industry", ""),
+        "business_scope": collected.get("business_scope", ""),
+        "business_features": collected.get("business_features", ""),
+        "culture": collected.get("culture", ""),
+        "advantages": collected.get("advantages", ""),
+        "phone": collected.get("phone", ""),
+        "email": collected.get("email", ""),
+        "address": collected.get("address", ""),
+        "logo": collected.get("logo", ""),
+        "style": collected.get("style", ""),
     }
 
     try:
@@ -118,7 +139,7 @@ def ask_question(question_index, collected, user_answer="", action="get_question
         import urllib.error
 
         req = urllib.request.Request(
-            ENDPOINT_ASK_QUESTION,
+            ENDPOINT_GET_COMPANY_INFO,
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
             headers=headers,
             method="POST"
@@ -189,9 +210,10 @@ def print_welcome():
     print("🌐  AI Website Generator - Multi-turn Dialogue")
     print("=" * 60)
     print("\nThis tool will help you generate a website through dialogue.")
-    print("I'll ask you questions about your website requirements.")
+    print("IMPORTANT: All answers must be manually entered by you!")
+    print("AI will ask questions, but will NEVER auto-answer.")
     print("You can:")
-    print("  - Answer each question in detail")
+    print("  - Type your answer manually for each question")
     print("  - Type 'skip' to skip a question")
     print("  - Type 'finish' to end dialogue and generate summary")
     print("  - Type 'exit' to quit at any time")
@@ -213,31 +235,75 @@ def ask_initialize():
         print("Please answer 'yes' or 'no'")
 
 
-def start_dialogue(api_key=None):
-    """Start the dialogue - get first question from AI"""
+def ask_single_question(question_data, index, total):
+    """Ask a single question and get user's answer"""
+    field = question_data["field"]
+    question = question_data["question"]
+    example = question_data.get("example", "")
+
+    while True:
+        print(f"\n💬 AI (问题 {index + 1}/{total}): {question}")
+        if example:
+            print(f"   例如: {example}")
+        print("   (输入 'skip' 跳过此题, 输入 'finish' 结束对话)")
+
+        user_input = input("\n👤 Your answer: ").strip()
+
+        if user_input.lower() in ["exit", "quit", "退出"]:
+            return None, True
+
+        if user_input.lower() in ["finish", "end", "完成", "结束"]:
+            return "", True
+
+        if user_input.lower() in ["skip", "s", "跳过"]:
+            return "未填写", False
+
+        if user_input:
+            return user_input, False
+
+        print("   ⚠️  您没有输入内容，请回答问题、输入 'skip' 跳过或 'finish' 结束")
+
+
+def collect_website_info():
+    """Collect website information through multi-turn dialogue"""
     collected = {}
+    total = len(QUESTIONS)
 
-    # Get first question (question_index = 0, no user answer yet)
-    result = ask_question(0, collected, "", "get_question", api_key)
+    for i, q in enumerate(QUESTIONS):
+        answer, should_exit = ask_single_question(q, i, total)
 
-    if result.get("code") != 0:
-        print(f"\n❌ Error: {result.get('msg', 'Unknown error')}")
-        return None
+        if should_exit:
+            if answer is None:
+                return None
+            break
 
-    data = result.get("data", {})
-    return data
+        collected[q["field"]] = answer
+
+    return collected
 
 
-def continue_dialogue(question_index, collected, user_answer, api_key=None):
-    """Continue dialogue - send user answer and get next question"""
-    result = ask_question(question_index, collected, user_answer, "get_question", api_key)
+def generate_summary(collected):
+    """Generate summary text from collected info"""
+    field_labels = {
+        "company_name": "公司/网站名称",
+        "industry": "行业",
+        "business_scope": "业务范围",
+        "business_features": "业务特色",
+        "culture": "企业文化",
+        "advantages": "核心优势",
+        "phone": "联系电话",
+        "email": "联系邮箱",
+        "address": "公司地址",
+        "logo": "Logo",
+        "style": "视觉风格",
+    }
 
-    if result.get("code") != 0:
-        print(f"\n❌ Error: {result.get('msg', 'Unknown error')}")
-        return None
+    summary_parts = ["📋 网站需求汇总："]
+    for field, label in field_labels.items():
+        value = collected.get(field, "未填写")
+        summary_parts.append(f"- {label}: {value}")
 
-    data = result.get("data", {})
-    return data
+    return "\n".join(summary_parts)
 
 
 def main():
@@ -254,12 +320,10 @@ def main():
 
     print_welcome()
 
-    # Step 1: Check site languages
     print("🔍 Checking site languages...")
     languages = check_site_languages(api_key)
 
     if languages and len(languages) > 0:
-        # Ask user if they want to initialize
         if ask_initialize():
             print("\n🔄 Initializing site...")
             result = initialize_site(api_key)
@@ -270,63 +334,16 @@ def main():
     else:
         print("✅ No existing languages found, skipping initialization")
 
-    # Step 2: Start multi-turn dialogue with AI
-    print("\n🚀 Starting dialogue with AI...")
+    print("\n🚀 Starting dialogue...")
     print("-" * 60)
 
-    # Get first question from AI
-    data = start_dialogue(api_key)
+    collected = collect_website_info()
 
-    if data is None:
-        print("\n❌ Failed to start dialogue")
-        sys.exit(1)
-
-    collected = data.get("collected", {})
-    question_index = data.get("question_index", 0)
-    is_complete = data.get("is_complete", False)
-
-    # Dialogue loop
-    while not is_complete:
-        question = data.get("question", "")
-        example = data.get("example", "")
-        total = data.get("total_questions", 11)
-
-        # Print AI question
-        print(f"\n💬 AI (问题 {question_index + 1}/{total}): {question}")
-        if example:
-            print(f"   例如: {example}")
-        print("   (输入 'skip' 跳过此题, 输入 'finish' 结束对话)")
-
-        # Get user input
-        user_input = input("\n👤 Your answer: ").strip()
-
-        # Handle commands
-        if user_input.lower() in ["exit", "quit", "退出"]:
-            print("\n👋 Goodbye!")
-            sys.exit(0)
-
-        # Continue dialogue with user answer
-        data = continue_dialogue(question_index, collected, user_input, api_key)
-
-        if data is None:
-            print("\n❌ Failed to continue dialogue")
-            break
-
-        # Update collected info
-        collected = data.get("collected", {})
-        question_index = data.get("question_index", 0)
-        is_complete = data.get("is_complete", False)
-
-        if is_complete:
-            break
-
-    # Check if dialogue completed
-    if not is_complete:
-        print("\n👋 Dialogue ended by user.")
+    if collected is None:
+        print("\n👋 Goodbye!")
         sys.exit(0)
 
-    # Get summary
-    summary = data.get("summary", "")
+    summary = generate_summary(collected)
 
     print("\n" + "=" * 60)
     print("📋 Website Design Summary")
@@ -334,7 +351,6 @@ def main():
     print(summary)
     print("=" * 60)
 
-    # Confirm with user
     while True:
         print("\n请确认以上信息是否正确？")
         print("输入 'yes' 或 '确认' 表示确认生成网站")
@@ -343,11 +359,15 @@ def main():
         response = input("\n👤 Your choice: ").strip().lower()
 
         if response in ["yes", "y", "是", "确认"]:
-            # User confirmed, generate requirement string and call API
-            requirement = f"请根据以下信息生成网站：\n"
-            for field, value in collected.items():
-                if value and value != "未填写":
-                    requirement += f"{field}: {value}\n"
+            print("\n📡 正在获取企业信息...")
+            info_result = get_company_info(collected, api_key)
+
+            if info_result.get("code") != 0:
+                print(f"\n❌ 获取企业信息失败: {info_result.get('msg', 'Unknown error')}")
+                sys.exit(1)
+
+            company_info = info_result.get("data", "")
+            requirement = f"请根据以下信息生成网站：\n{company_info}"
 
             print("\n🚀 正在生成网站...(这可能需要几分钟时间)")
             result = generate_website(requirement, api_key)
