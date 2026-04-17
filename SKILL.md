@@ -1,7 +1,7 @@
 ---
 name: nicebox-site-manager
 description: Manage AI-built websites via NiceBox OpenClaw API. Supports article publishing, viewing messages, and checking site status.
-metadata: {"clawdbot":{"emoji":"🛠️","requires":{"bins":["python3"],"env":["AIBOX_API_KEY"]},"primaryEnv":"AIBOX_API_KEY"}}
+metadata: {"clawdbot":{"emoji":"🛠️","requires":{"env":["AIBOX_API_KEY"]},"primaryEnv":"AIBOX_API_KEY"}}
 ---
 
 # NiceBox Site Manager
@@ -136,19 +136,28 @@ Generate or regenerate a website through AI-guided multi-turn dialogue.
 4. Start multi-turn dialogue - AI asks questions, customer manually answers one by one
 5. Generate summary and confirm with user
 6. Call `getCompanyInfo` API to get company info text
-7. Call `generateWebsite` API to generate website
+7. Call `generateWebsite` API to generate website (SSE streaming, saves HTML file)
 
 ```bash
 python3 {baseDir}/scripts/generate_website.py
 ```
+
+### Commands:
+- `status` - Show dialogue progress (which questions answered, what's next)
+- `questions` - List all 13 questions
+- `next` - Print the next question to ask the user
+- `answer --answer "user's input"` - Record user's answer and advance to next question
+- `summary` - Show all collected info as a formatted summary
+- `generate --init` - Generate website (use --init to reinitialize site first)
+- `reset` - Reset dialogue state (start over)
 
 ### How it works:
 1. The script will check if site languages exist
 2. If languages exist, ask if user wants to initialize (clear existing content)
 3. If user confirms initialization, call initialize API
 4. Start multi-turn dialogue - AI asks questions one by one:
-   - Company/Website name
-   - Industry
+   - Company/Website name (required)
+   - Industry (required)
    - Business scope
    - Business features
    - Culture and philosophy
@@ -158,20 +167,24 @@ python3 {baseDir}/scripts/generate_website.py
    - Company address
    - Logo URL
    - Visual style
+   - Website color scheme
+   - Other补充
 5. **For each question:**
    - AI displays the question and example
    - Customer types their answer manually and presses Enter
    - AI cannot auto-answer - all answers must come from customer input
    - Customer can skip questions or exit at any time
+   - **Empty answer without skip → stored as "未填写"**
 6. After all questions or user finishes, show summary for confirmation
 7. If user confirms:
-   - Call `POST /ai/getCompanyInfo` with collected data
+   - Call `POST /ai_tools/getCompanyInfo` with collected data
    - Use returned info as requirement
-   - Call `POST /ai_tools/generateWebsite` to generate website
+   - Call `POST /ai_tools/generateWebsite` (SSE streaming)
+   - HTML file saved to workspace
 
 ### User commands:
 - **Answer normally**: Type your answer and press Enter (customer must provide their own answer)
-- **Skip question**: Type 'skip' or '跳过' to skip the current question
+- **Skip question**: Type 'skip' or '跳过' to skip the current question (stored as "未填写")
 - **Finish dialogue**: Type 'finish' or '结束' to end dialogue and generate summary
 - **Exit**: Type 'exit' or '退出' to quit
 
@@ -180,8 +193,7 @@ python3 {baseDir}/scripts/generate_website.py
 - AI never auto-answers or generates answers for the customer
 - Each question requires the customer to type their own response
 - If customer doesn't answer, the question will be asked again until answered or skipped
-
-No additional options required.
+- **Unanswered fields are stored as "未填写"**, never as empty strings
 
 ## View messages
 
@@ -223,6 +235,73 @@ Optional override for base URL:
 export AIBOX_BASE_URL="http://aidev.nicebox.cn/api/openclaw"
 ```
 
+## API Specification
+
+### Authorization Header
+**Format**: `Authorization: <api_key>` (no Bearer prefix)
+
+Correct:
+```
+Authorization: 4_455_14ed156fdba64c6ccdb7a0cf236ac712078382681f3cb237
+```
+
+Wrong (will fail):
+```
+Authorization: Bearer 4_455_14ed156fdba64c6ccdb7a0cf236ac712078382681f3cb237
+```
+
+### getCompanyInfo Required Fields
+
+The `POST /ai_tools/getCompanyInfo` API requires these fields:
+
+| Field | Required | Note |
+|-------|---------|------|
+| `company_name` | ✅ Yes | Must not be empty |
+| `advantages` | No | |
+| `logo` | No | |
+| `industry` | No | |
+| `business_scope` | ✅ Yes | Business scope, must not be empty |
+| `business_features` | No | |
+| `culture` | No | |
+| `phone` | No | |
+| `email` | No | |
+| `address` | No | |
+| `style` | No | |
+| `color_scheme` | No | |
+| `other` | No | |
+
+**Important**: The API will return `400 "公司名称/网站名称不能为空"` or `400 "业务范围不能为空"` if required fields are missing. When fields are not provided by the user, store as the string `"未填写"` (not an empty string).
+
+**Logo placeholder** (when user has no logo):
+```
+https://via.placeholder.com/200x80/8B4513/FFFFFF?text=CompanyName
+```
+Color codes: `8B4513` (brown), `00A86B` (green), `1E3A8A` (blue), `D4AF37` (gold)
+
+### generateWebsite SSE Events
+
+The `POST /ai_tools/generateWebsite` API returns SSE (Server-Sent Events):
+
+| Event Type | Description | Fields |
+|-----------|-------------|--------|
+| `intro_text` | Requirement confirmation | `content`, `timestamp` |
+| `progress` | Generation progress | `percentage` (may be null), `message` |
+| `section_generating` | Section generation started | `section` (may be undefined), `timestamp` |
+| `progressive_content` | HTML content chunk | `content` (accumulates) |
+| `section_complete` | Section generation done | `section` (may be undefined), `timestamp` |
+| `complete` | All generation finished | - |
+| `error` | Error occurred | `message` |
+
+**Important**: The `section` field may be `undefined` in some events. Use sequential numbering as fallback.
+
+### Error Codes
+
+| HTTP/Code | Meaning | Action |
+|-----------|---------|--------|
+| 0 | Success | Continue |
+| 400 | Missing required fields | Check `message`, fix payload |
+| 500 | Server error | Retry 2-3 times with delay |
+
 ## Default endpoint assumptions
 
 This skill assumes the following API paths:
@@ -240,11 +319,31 @@ This skill assumes the following API paths:
 
 If your actual backend uses different paths, update the `ENDPOINT_*` constants in the Python scripts.
 
+## Troubleshooting
+
+### "公司名称/网站名称不能为空" or "业务范围不能为空"
+The `getCompanyInfo` API requires `company_name`, `business_scope` fields to be non-empty. Store undefined fields as `"未填写"`.
+
+### Logo field is empty
+Use a placeholder image URL:
+```
+https://via.placeholder.com/200x80/8B4513/FFFFFF?text=Logo
+```
+
+### SSE streaming produces incomplete HTML
+The script now includes HTML validation and timeout protection (3 minutes). If the HTML is incomplete, check:
+- Does it have `<!DOCTYPE html>` or `<html>` tag?
+- Does it have `</html>` closing tag?
+- Is it at least 5000 characters?
+
+### Python scripts not working on Windows
+Windows security policy may block script execution in the WindowsApps directory. Use Python 3 directly or check execution policy.
+
 ## Notes
 
 * All requests use the HTTP `Authorization` header.
 * The API key is sent as plain header value:
-
-  * `Authorization: YOUR_KEY`
+  * `Authorization: YOUR_KEY` (no Bearer prefix)
 * Output is printed as formatted JSON for easier debugging and agent use.
 * If your API field names differ, update the payload fields in the scripts.
+* Unanswered fields are always stored as the string `"未填写"`, never as empty strings.
