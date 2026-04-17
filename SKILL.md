@@ -233,7 +233,7 @@ This skill assumes the following API paths:
 * `GET /product/getCategories`
 * `GET /site_pages/getLanguageList`
 * `POST /template/initializeData`
-* `POST /ai/getCompanyInfo`
+* `POST /ai_tools/getCompanyInfo`
 * `POST /ai_tools/generateWebsite`
 * `GET /message/getlist`
 * `GET /site/status`

@@ -13,7 +13,7 @@ API_KEY = os.environ.get("AIBOX_API_KEY", "")
 
 ENDPOINT_LANGUAGE_LIST = f"{BASE_URL}/site_pages/getLanguageList"
 ENDPOINT_INITIALIZE = f"{BASE_URL}/template/initializeData"
-ENDPOINT_GET_COMPANY_INFO = f"{BASE_URL}/ai/getCompanyInfo"
+ENDPOINT_GET_COMPANY_INFO = f"{BASE_URL}/ai_tools/getCompanyInfo"
 ENDPOINT_GENERATE_WEBSITE = f"{BASE_URL}/ai_tools/generateWebsite"
 
 QUESTIONS = [
