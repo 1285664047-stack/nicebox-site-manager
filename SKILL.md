@@ -20,7 +20,7 @@ Authentication:
 Authorization: $AIBOX_API_KEY
 ```
 
-This skill provides 12 main capabilities:
+This skill provides 11 main capabilities:
 
 * Publish article
 * List article categories
@@ -30,7 +30,6 @@ This skill provides 12 main capabilities:
 * Generate website
 * View messages
 * Check site status
-* Manage FTP configuration
 * Test FTP connection
 * Publish website
 * Upload material
@@ -271,77 +270,6 @@ python3 {baseDir}/scripts/site_status.py
 
 No additional options required.
 
-## Manage FTP configuration
-
-Manage FTP configuration for website publishing.
-
-### Python version:
-```bash
-python3 {baseDir}/scripts/ftp_manager.py get-config
-python3 {baseDir}/scripts/ftp_manager.py update-config --host ftp.example.com --port 21 --username user --password pass
-python3 {baseDir}/scripts/ftp_manager.py test-connection
-```
-
-### Node.js version:
-```bash
-node {baseDir}/scripts/ftp_manager.mjs get-config
-node {baseDir}/scripts/ftp_manager.mjs update-config --host ftp.example.com --port 21 --username user --password pass
-node {baseDir}/scripts/ftp_manager.mjs test-connection
-```
-
-### Commands:
-- `get-config` - Get current FTP configuration
-- `update-config` - Update FTP configuration (supports partial updates)
-  - `--host`: FTP host
-  - `--port`: FTP port
-  - `--username`: FTP username
-  - `--password`: FTP password
-  - `--path`: FTP path
-  - `--passive`: FTP passive mode (true/false)
-  - `--publish-mode`: Publish mode (dynamic/static)
-- `test-connection` - Test FTP connection
-- `get-server-info` - Get FTP server information
-- `get-task-status` - Get publish task status
-- `cancel-task` - Cancel publish task
-- `publish` - Publish website
-
-### Publish process flow:
-1. Check FTP configuration (warning only if test fails, does not block publish)
-2. Test FTP connection (failure → warning, still attempts publish)
-3. Check publish status (using `get-task-status`)
-4. Cancel existing task if running (using `cancel-task`)
-5. Prepare publish (using `preparePublish` API)
-6. Publish website (using `publish` API, with auto-retry up to 3 times)
-7. Show completion message with upload stats
-
-**Important**: The `batch_number` parameter **MUST be inside the `options` object**, not at the top level of the request body. This is a PHP backend requirement — placing it outside causes `Undefined array key "batch_number"` error.
-
-Correct:
-```json
-{
-  "options": {
-    "batch_size": 30,
-    "overwrite_mode": "smart",
-    "generate_mode": "default",
-    "batch_number": 1
-  },
-  "disable_streaming": true
-}
-```
-
-Wrong (will fail):
-```json
-{
-  "options": {
-    "batch_size": 30,
-    "overwrite_mode": "smart",
-    "generate_mode": "default"
-  },
-  "batch_number": 1,
-  "disable_streaming": true
-}
-```
-
 ## Publish website
 
 Publish your website to FTP server with pre-checks.
@@ -383,8 +311,18 @@ AI 向用户展示确认提示：「⚠️ 发布网站将覆盖线上版本，�
 
 ### 发布流程（确认后执行）：
 
+**重要：FTP 配置不完整时自动拦截并引导**
+
+脚本在发布前会自动检查 FTP 四个关键字段（主机、用户名、密码、端口）。
+任一字段为空时，脚本输出提示并终止发布：
+
+> ⚠️ FTP配置不完整，缺少：xxx
+> 请前往「网站站点后台 → FTP配置」页面填写完整后再执行发布。
+
+`test-connection` 连接失败时同样会提示相同引导。
+
 **Important**: The publish command automatically checks:
-1. FTP configuration is complete
+1. FTP configuration is complete (host/username/password/port — any empty field blocks publish)
 2. FTP connection is successful (failure = warning, not block)
 3. All required fields are filled
 
@@ -392,6 +330,8 @@ After successful generation, you'll be prompted to publish using:
 ```bash
 node {baseDir}/scripts/ftp_manager.mjs publish
 ```
+
+**如果 FTP 配置缺失或需要修改：** 请前往「网站站点后台 → FTP配置」页面进行填写或修改，本工具不支持在线修改 FTP 配置。
 
 ### Python version:
 ```bash

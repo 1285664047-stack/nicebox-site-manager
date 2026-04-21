@@ -5,15 +5,13 @@ FTP配置管理和网站发布工具
 
 功能：
 1. 获取FTP配置
-2. 更新FTP配置
-3. 测试FTP连接
-4. 发布网站
+2. 测试FTP连接
+3. 发布网站
 
 使用示例：
 1. 获取FTP配置：python ftp_manager.py get-config
-2. 更新FTP配置：python ftp_manager.py update-config --host ftp.example.com --port 21 --username user --password pass --path www
-3. 测试FTP连接：python ftp_manager.py test-connection
-4. 发布网站：python ftp_manager.py publish
+2. 测试FTP连接：python ftp_manager.py test-connection
+3. 发布网站：python ftp_manager.py publish
 """
 
 import argparse
@@ -24,7 +22,6 @@ import sys
 
 # API端点
 ENDPOINT_GET_CONFIG = '/api/openclaw/site_publish/getConfig'
-ENDPOINT_UPDATE_CONFIG = '/api/openclaw/site_publish/updateFtpConfig'
 ENDPOINT_TEST_CONNECTION = '/api/openclaw/site_publish/testFtpConnection'
 ENDPOINT_PUBLISH = '/api/openclaw/site_publish/publish'
 ENDPOINT_GET_TASK_STATUS = '/api/openclaw/site_publish/getTaskStatus'
@@ -87,6 +84,12 @@ def get_ftp_config():
             print(f"FTP模式: {'被动' if result['data']['ftp_passive'] else '主动'}")
             print(f"发布模式: {result['data']['publish_mode']}")
             print(f"站点地图URL: {result['data']['sitemap_url']}")
+
+            # 检查关键字段是否为空
+            data = result['data']
+            if not data.get('ftp_host') or not data.get('ftp_username') or not data.get('ftp_password') or not data.get('ftp_port'):
+                print('\n⚠️ FTP配置不完整，请前往「网站站点后台 → FTP配置」页面填写后，再执行发布操作。')
+
             return result['data']
         else:
             print(f"错误: {result.get('message', '获取配置失败')}")
@@ -94,53 +97,6 @@ def get_ftp_config():
     except requests.RequestException as e:
         print(f"请求失败: {e}")
         return None
-
-
-def update_ftp_config(args):
-    """更新FTP配置"""
-    print("正在更新FTP配置...")
-    
-    config = load_config()
-    url = get_api_url(config, ENDPOINT_UPDATE_CONFIG)
-    headers = get_headers(config)
-    
-    # 构建更新参数
-    update_data = {}
-    if args.host:
-        update_data['ftp_host'] = args.host
-    if args.port:
-        update_data['ftp_port'] = args.port
-    if args.username:
-        update_data['ftp_username'] = args.username
-    if args.password:
-        update_data['ftp_password'] = args.password
-    if args.path:
-        update_data['ftp_path'] = args.path
-    if args.passive is not None:
-        update_data['ftp_passive'] = 1 if args.passive else 0
-    if args.publish_mode:
-        update_data['publish_mode'] = args.publish_mode
-    
-    if not update_data:
-        print("错误：请至少提供一个要更新的配置项")
-        return False
-    
-    try:
-        response = requests.post(url, headers=headers, json=update_data, timeout=30)
-        response.raise_for_status()
-        result = response.json()
-        
-        if result.get('code') == 0:
-            print("\nFTP配置更新成功！")
-            # 显示更新后的配置
-            get_ftp_config()
-            return True
-        else:
-            print(f"错误: {result.get('message', '更新配置失败')}")
-            return False
-    except requests.RequestException as e:
-        print(f"请求失败: {e}")
-        return False
 
 
 def test_ftp_connection():
@@ -162,6 +118,7 @@ def test_ftp_connection():
             return True
         else:
             print(f"错误: {result.get('message', '连接测试失败')}")
+            print('\n💡 提示：请前往「网站站点后台 → FTP配置」页面检查FTP信息是否已填写完整。')
             return False
     except requests.RequestException as e:
         print(f"请求失败: {e}")
@@ -310,14 +267,13 @@ def publish_website(args):
         print("错误：无法获取FTP配置")
         return False
     
-    # 注意：ftp_password 为 ****** 时表示后台已配置（脱敏返回）
-    # 只检查 host 和 username，不检查 password（脱敏后无法判断）
-    required_fields = ['ftp_host', 'ftp_username']
+    # 检查FTP关键字段是否完整（host/username/password/port 四个均需填写）
+    required_fields = ['ftp_host', 'ftp_username', 'ftp_password', 'ftp_port']
     missing_fields = [f for f in required_fields if not ftp_config.get(f)]
-    
+
     if missing_fields:
-        print(f"错误：缺少必要的FTP配置项：{', '.join(missing_fields)}")
-        print("请先使用 update-config 命令更新FTP配置")
+        print(f'\n⚠️ FTP配置不完整，缺少：{", ".join(missing_fields)}')
+        print('请前往「网站站点后台 → FTP配置」页面填写完整后再执行发布。')
         return False
     
     # 测试FTP连接（改为警告而非硬阻断）
@@ -435,18 +391,7 @@ def main():
     
     # 获取配置命令
     subparsers.add_parser('get-config', help='获取FTP配置')
-    
-    # 更新配置命令
-    update_parser = subparsers.add_parser('update-config', help='更新FTP配置')
-    update_parser.add_argument('--host', type=str, help='FTP主机地址')
-    update_parser.add_argument('--port', type=int, help='FTP端口')
-    update_parser.add_argument('--username', type=str, help='FTP用户名')
-    update_parser.add_argument('--password', type=str, help='FTP密码')
-    update_parser.add_argument('--path', type=str, help='FTP路径')
-    update_parser.add_argument('--passive', action='store_true', help='启用被动模式')
-    update_parser.add_argument('--active', dest='passive', action='store_false', help='启用主动模式')
-    update_parser.add_argument('--publish-mode', type=str, choices=['dynamic', 'static'], help='发布模式')
-    
+
     # 测试连接命令
     subparsers.add_parser('test-connection', help='测试FTP连接')
     
@@ -464,8 +409,6 @@ def main():
     
     if args.command == 'get-config':
         get_ftp_config()
-    elif args.command == 'update-config':
-        update_ftp_config(args)
     elif args.command == 'test-connection':
         test_ftp_connection()
     elif args.command == 'get-server-info':
