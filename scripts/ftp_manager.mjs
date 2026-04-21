@@ -1,18 +1,16 @@
 #!/usr/bin/env node
 /**
  * FTP配置管理和网站发布工具 (Node.js版本)
- * 
+ *
  * 功能：
  * 1. 获取FTP配置
- * 2. 更新FTP配置
- * 3. 测试FTP连接
- * 4. 发布网站
- * 
+ * 2. 测试FTP连接
+ * 3. 发布网站
+ *
  * 使用示例：
  * 1. 获取FTP配置：node ftp_manager.mjs get-config
- * 2. 更新FTP配置：node ftp_manager.mjs update-config --host ftp.example.com --port 21 --username user --password pass --path www
- * 3. 测试FTP连接：node ftp_manager.mjs test-connection
- * 4. 发布网站：node ftp_manager.mjs publish
+ * 2. 测试FTP连接：node ftp_manager.mjs test-connection
+ * 3. 发布网站：node ftp_manager.mjs publish
  */
 
 import fs from 'fs';
@@ -22,7 +20,6 @@ import yargs from 'yargs';
 
 // API端点（base_url 已包含 /api/openclaw，此处只写相对路径）
 const ENDPOINT_GET_CONFIG = '/site_publish/getConfig';
-const ENDPOINT_UPDATE_CONFIG = '/site_publish/updateFtpConfig';
 const ENDPOINT_TEST_CONNECTION = '/site_publish/testFtpConnection';
 const ENDPOINT_PUBLISH = '/site_publish/publish';
 const ENDPOINT_GET_TASK_STATUS = '/site_publish/getTaskStatus';
@@ -109,6 +106,14 @@ async function getFtpConfig() {
       console.log(`FTP模式: ${result.data.ftp_passive ? '被动' : '主动'}`);
       console.log(`发布模式: ${result.data.publish_mode}`);
       console.log(`站点地图URL: ${result.data.sitemap_url}`);
+
+      // 检查关键字段是否为空
+      const { ftp_host, ftp_username, ftp_password, ftp_port } = result.data;
+      const ftpIncomplete = !ftp_host || !ftp_username || !ftp_password || !ftp_port;
+      if (ftpIncomplete) {
+        console.log('\n⚠️ FTP配置不完整，请前往「网站站点后台 → FTP配置」页面填写后，再执行发布操作。');
+      }
+
       return result.data;
     } else {
       console.error(`错误: ${result.message || '获取配置失败'}`);
@@ -117,74 +122,6 @@ async function getFtpConfig() {
   } catch (error) {
     console.error(`请求失败: ${error.message}`);
     return null;
-  }
-}
-
-/**
- * 更新FTP配置
- */
-async function updateFtpConfig(args) {
-  console.log('正在更新FTP配置...');
-  
-  const config = loadConfig();
-  const url = getApiUrl(config, ENDPOINT_UPDATE_CONFIG);
-  const headers = getHeaders(config);
-  
-  // 构建更新参数
-  const updateData = {};
-  if (args.host) {
-    updateData.ftp_host = args.host;
-  }
-  if (args.port) {
-    updateData.ftp_port = args.port;
-  }
-  if (args.username) {
-    updateData.ftp_username = args.username;
-  }
-  if (args.password) {
-    updateData.ftp_password = args.password;
-  }
-  if (args.path) {
-    updateData.ftp_path = args.path;
-  }
-  if (args.passive !== undefined) {
-    updateData.ftp_passive = args.passive ? 1 : 0;
-  }
-  if (args.publishMode) {
-    updateData.publish_mode = args.publishMode;
-  }
-  
-  if (Object.keys(updateData).length === 0) {
-    console.error('错误：请至少提供一个要更新的配置项');
-    return false;
-  }
-  
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(updateData),
-      timeout: 30000
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (result.code === 0) {
-      console.log('\nFTP配置更新成功！');
-      // 显示更新后的配置
-      await getFtpConfig();
-      return true;
-    } else {
-      console.error(`错误: ${result.message || '更新配置失败'}`);
-      return false;
-    }
-  } catch (error) {
-    console.error(`请求失败: ${error.message}`);
-    return false;
   }
 }
 
@@ -217,6 +154,7 @@ async function testFtpConnection() {
       return true;
     } else {
       console.error(`错误: ${result.message || '连接测试失败'}`);
+      console.log('\n💡 提示：请前往「网站站点后台 → FTP配置」页面检查FTP信息是否已填写完整。');
       return false;
     }
   } catch (error) {
@@ -419,6 +357,13 @@ async function publishWebsite(args) {
     console.error('错误：无法获取FTP配置');
     return false;
   }
+
+  // 检查FTP关键字段是否完整
+  const ftpIncomplete = !ftpConfig.ftp_host || !ftpConfig.ftp_username || !ftpConfig.ftp_password || !ftpConfig.ftp_port;
+  if (ftpIncomplete) {
+    console.error('\n⚠️ FTP配置不完整，请前往「网站站点后台 → FTP配置」页面填写完整后再执行发布。');
+    return false;
+  }
   
   // 注意：ftp_password 为 ****** 时表示后台已配置（脱敏返回），应由 API 判断连接是否可用
   // 不再在此做本地空值检查，避免误判已配置但脱敏的密码
@@ -592,17 +537,6 @@ async function proceedWithPublish(args, resolve = null) {
 async function main() {
   const argv = yargs(process.argv.slice(2))
     .command('get-config', '获取FTP配置')
-    .command('update-config', '更新FTP配置', (yargs) => {
-      return yargs
-        .option('host', { type: 'string', describe: 'FTP主机地址' })
-        .option('port', { type: 'number', describe: 'FTP端口' })
-        .option('username', { type: 'string', describe: 'FTP用户名' })
-        .option('password', { type: 'string', describe: 'FTP密码' })
-        .option('path', { type: 'string', describe: 'FTP路径' })
-        .option('passive', { type: 'boolean', describe: '启用被动模式' })
-        .option('active', { type: 'boolean', describe: '启用主动模式' })
-        .option('publish-mode', { type: 'string', choices: ['dynamic', 'static'], describe: '发布模式' });
-    })
     .command('test-connection', '测试FTP连接')
     .command('get-server-info', '获取FTP服务器信息')
     .command('get-task-status', '获取发布任务状态')
@@ -622,17 +556,6 @@ async function main() {
   switch (command) {
     case 'get-config':
       await getFtpConfig();
-      break;
-    case 'update-config':
-      await updateFtpConfig({
-        host: argv.host,
-        port: argv.port,
-        username: argv.username,
-        password: argv.password,
-        path: argv.path,
-        passive: argv.passive !== undefined ? argv.passive : (argv.active !== undefined ? !argv.active : undefined),
-        publishMode: argv['publish-mode']
-      });
       break;
     case 'test-connection':
       await testFtpConnection();
