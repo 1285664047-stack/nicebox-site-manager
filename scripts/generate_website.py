@@ -67,7 +67,7 @@ QUESTIONS = [
         "field": "business_scope",
         "question": "您的业务范围是什么？提供哪些产品或服务？",
         "placeholder": "例如：软件开发与定制、技术咨询服务",
-        "required": True,
+        "required": False,
         "followups": [],
     },
     {
@@ -115,7 +115,7 @@ FIELD_LABELS = {
 }
 
 # API 必填字段（getCompanyInfo 要求）
-REQUIRED_API_FIELDS = ["company_name", "business_scope"]
+REQUIRED_API_FIELDS = ["company_name"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 状态管理
@@ -1133,7 +1133,7 @@ def mode_ask_init():
     else:
         # 无数据 → 自动初始化，直接进入收集问题
         state["init_confirmed"] = True
-        print("站点为空，正在自动初始化...")
+        print("站点为空，无需初始化数据...")
         do_initialize(state, "自动初始化")
         print("请直接回答以下问题：")
         next_q = QUESTIONS[state.get("current_index", 0)] if state.get("current_index", 0) < len(QUESTIONS) else None

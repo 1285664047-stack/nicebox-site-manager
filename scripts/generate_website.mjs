@@ -17,10 +17,17 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
 
+// 读取 API 配置（环境变量优先）
 const BASE_URL = process.env.AIBOX_BASE_URL || "http://aidev.nicebox.cn/api/openclaw";
-const API_KEY  = process.env.AIBOX_API_KEY  || "4_455_14ed156fdba64c6ccdb7a0cf236ac712078382681f3cb237";
+const API_KEY  = process.env.AIBOX_API_KEY  || "";
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const STATE_FILE = path.join(SCRIPT_DIR, ".dialogue_state.json");
+
+// 检查 API_KEY 是否设置
+if (!API_KEY) {
+  console.error('错误：缺少 API 配置，请设置 AIBOX_API_KEY 环境变量');
+  process.exit(1);
+}
 
 // ── 统一确认提示（两次确认使用完全相同的文案） ─────────────────────────────
 const CONFIRM_MESSAGE = "检测到站点已有数据，生成网站将初始化站点，清空已有的所有网站信息，包括页面、产品、文章、留言等。是否确认继续？";
@@ -101,7 +108,7 @@ const QUESTIONS = [
   { field: "company_name",   question: "请问您的公司名称或想创建的网站名称是什么？",                placeholder: "例如：鲜然食品加工厂、明德律师事务所", required: true,  followups: [] },
   { field: "logo",           question: "请问您是否有公司 logo 地址？",                           placeholder: "例如：https://example.com/logo.png（没有请跳过）", required: false, followups: [] },
   { field: "industry",       question: "您从事哪个行业？",                                       placeholder: "例如：食品加工、科技、医疗、教育、餐饮、金融", required: false, followups: [] },
-  { field: "business_scope", question: "您的业务范围是什么？提供哪些产品或服务？",                 placeholder: "例如：果蔬罐头加工、软件开发与定制、技术咨询服务", required: true,  followups: [] },
+  { field: "business_scope", question: "您的业务范围是什么？提供哪些产品或服务？",                 placeholder: "例如：果蔬罐头加工、软件开发与定制、技术咨询服务", required: false, followups: [] },
   { field: "advantages",     question: "您的核心竞争优势是什么？",                               placeholder: "例如：原料直供、品质保证、出口认证、技术领先", required: false, followups: [] },
   { field: "phone",          question: "请提供您的联系方式, 包括联系电话、联系邮箱、公司地址等？",                                   placeholder: "例如：400-888-8888 / contact@example.com / 北京市朝阳区", required: false, followups: ["email", "address"] },
   { field: "style",          question: "您希望网站呈现什么样的视觉风格？",                placeholder: "例如：简约现代风、健康自然风，专业商务风、活力创意风", required: false, followups: [] },
@@ -116,7 +123,7 @@ const FIELD_LABELS = {
   style:         "视觉风格", other:         "其他补充",
 };
 
-const REQUIRED_API_FIELDS = ["company_name", "business_scope"];
+const REQUIRED_API_FIELDS = ["company_name"];
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 
@@ -348,6 +355,27 @@ async function doInitialize(state, label) {
 
 // ── 辅助：执行网站生成 ────────────────────────────────────────────────────────
 
+// 生成成功后自动获取临时分享链接
+async function getShareUrl() {
+  const url = BASE_URL + '/site/generateShareUrl';
+  const isHttps = url.startsWith('https');
+  const mod = isHttps ? https : http;
+  return new Promise((resolve) => {
+    const u = new URL(url);
+    const req = mod.request({
+      hostname: u.hostname, path: u.pathname,
+      method: 'GET',
+      headers: { 'Authorization': API_KEY }
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve(null); } });
+    });
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+}
+
 async function doGenerate(state) {
   for (const f of REQUIRED_API_FIELDS) {
     if (!state.collected[f] || state.collected[f] === "未填写") {
@@ -363,6 +391,13 @@ async function doGenerate(state) {
   const result = await generateWebsiteStream("请根据以下信息生成网站：\n" + companyInfo);
   if (result.ok) {
     console.log("\n网站已成功生成到站点！");
+    // 生成成功后自动获取临时分享链接
+    const shareResult = await getShareUrl();
+    if (shareResult && shareResult.code === 0 && shareResult.data) {
+      console.log('\n✅ 临时分享链接（有效期 2 小时）：');
+      console.log('   ' + shareResult.data.share_url);
+      console.log('');
+    }
     // 🔒 不自动发布，输出结构化确认请求让 AI 询问用户
     console.log(JSON.stringify({
       need_publish_confirm: true,

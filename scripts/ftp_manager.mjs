@@ -20,9 +20,6 @@ import path from 'path';
 import fetch from 'node-fetch';
 import yargs from 'yargs';
 
-// 配置文件路径
-const CONFIG_FILE = path.join(path.dirname(import.meta.url.replace('file:///', '')), 'config.json');
-
 // API端点（base_url 已包含 /api/openclaw，此处只写相对路径）
 const ENDPOINT_GET_CONFIG = '/site_publish/getConfig';
 const ENDPOINT_UPDATE_CONFIG = '/site_publish/updateFtpConfig';
@@ -34,21 +31,21 @@ const ENDPOINT_PREPARE_PUBLISH = '/site_publish/preparePublish';
 
 /**
  * 加载配置
- * 优先读取本地 config.json，不存在则从环境变量构造
+ * 从环境变量构造
  */
 function loadConfig() {
-  if (fs.existsSync(CONFIG_FILE)) {
-    const configContent = fs.readFileSync(CONFIG_FILE, 'utf-8');
-    return JSON.parse(configContent);
-  }
-  
-  // config.json 不存在时，从环境变量构造（与 generate_website.mjs 保持一致）
+  // 从环境变量构造（与 generate_website.mjs 保持一致）
   const baseUrl = process.env.AIBOX_BASE_URL || "http://aidev.nicebox.cn/api/openclaw";
-  const apiKey  = process.env.AIBOX_API_KEY  || "4_455_14ed156fdba64c6ccdb7a0cf236ac712078382681f3cb237";
-  const siteId  = process.env.AIBOX_SITE_ID  || "455";
+  const apiKey  = process.env.AIBOX_API_KEY  || "";
+  const siteId  = process.env.AIBOX_SITE_ID  || "";
   
   if (!apiKey) {
-    console.error('错误：缺少 API 配置，请设置 AIBOX_API_KEY 环境变量或创建 config.json');
+    console.error('错误：缺少 API 配置，请设置 AIBOX_API_KEY 环境变量');
+    process.exit(1);
+  }
+  
+  if (!siteId) {
+    console.error('错误：缺少 SITE 配置，请设置 AIBOX_SITE_ID 环境变量');
     process.exit(1);
   }
   

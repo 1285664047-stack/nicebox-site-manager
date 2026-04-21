@@ -22,9 +22,6 @@ import requests
 import os
 import sys
 
-# 配置文件路径
-CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.json')
-
 # API端点
 ENDPOINT_GET_CONFIG = '/api/openclaw/site_publish/getConfig'
 ENDPOINT_UPDATE_CONFIG = '/api/openclaw/site_publish/updateFtpConfig'
@@ -36,13 +33,19 @@ ENDPOINT_PREPARE_PUBLISH = '/api/openclaw/site_publish/preparePublish'
 
 
 def load_config():
-    """加载配置文件"""
-    if not os.path.exists(CONFIG_FILE):
-        print("错误：配置文件不存在，请先运行 generate_website.py 进行配置")
+    """加载配置"""
+    # 从环境变量构造
+    base_url = os.environ.get("AIBOX_BASE_URL", "http://aidev.nicebox.cn/api/openclaw")
+    api_key = os.environ.get("AIBOX_API_KEY", "")
+    
+    if not api_key:
+        print("错误：缺少 API 配置，请设置 AIBOX_API_KEY 环境变量")
         sys.exit(1)
     
-    with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return {
+        "api_url": base_url,
+        "api_key": api_key
+    }
 
 
 def get_api_url(config, endpoint):

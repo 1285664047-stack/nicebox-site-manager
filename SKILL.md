@@ -20,7 +20,7 @@ Authentication:
 Authorization: $AIBOX_API_KEY
 ```
 
-This skill provides 11 main capabilities:
+This skill provides 12 main capabilities:
 
 * Publish article
 * List article categories
@@ -33,6 +33,8 @@ This skill provides 11 main capabilities:
 * Manage FTP configuration
 * Test FTP connection
 * Publish website
+* Upload material
+* Generate share URL
 
 ## Publish article
 
@@ -184,7 +186,7 @@ node {baseDir}/scripts/generate_website.mjs reset             # 重置对话
 | 1 | 公司名称 | company_name（⭐必填） | 可跳过 / 完成 |
 | 2 | Logo | logo（无则跳过） | 可跳过 / 完成 |
 | 3 | 行业 | industry | 可跳过 / 完成 |
-| 4 | 业务范围 | business_scope（⭐必填） | 可跳过 / 完成 |
+| 4 | 业务范围 | business_scope | 可跳过 / 完成 |
 | 5 | 核心优势 | advantages | 可跳过 / 完成 |
 | 6 | 联系方式 | phone → 自动追问邮箱/地址 | 可跳过 / 完成 |
 | 7 | 视觉风格 | style（含配色） | 可跳过 / 完成 |
@@ -421,16 +423,43 @@ node {baseDir}/scripts/ftp_manager.mjs publish --confirmed
 
 ## Environment
 
-Set your API key before using this skill:
+### 修改 API Key（默认方式）
+
+当用户提出要修改「秘钥、key、api key」时，**默认使用 `set-key` 命令**，直接修改操作系统环境变量 `AIBOX_API_KEY`：
 
 ```bash
+# 查看当前秘钥
+node {baseDir}/scripts/set-key.mjs
+python {baseDir}/scripts/set-key.py
+
+# 修改秘钥（写入操作系统环境变量，立即生效+持久化）
+node {baseDir}/scripts/set-key.mjs "your_new_api_key"
+python {baseDir}/scripts/set-key.py "your_new_api_key"
+```
+
+此方式会：
+1. 将新密钥写入当前进程 `process.env.AIBOX_API_KEY`（本次会话立即生效）
+2. 调用 PowerShell 写入用户级操作系统环境变量 `HKCU:\Environment`（永久生效，重启后依然有效）
+
+> **提示**：如果其他工具（IDE、第三方脚本）需要用到 `AIBOX_API_KEY`，建议手动在系统「环境变量」设置中确认或手动添加。
+
+### 临时环境变量（备用方式）
+
+如果只想在当前终端会话中临时使用某个密钥（不影响系统环境变量）：
+
+```bash
+# PowerShell（当前终端有效，关闭后失效）
+$env:AIBOX_API_KEY="your_api_key"
+
+# Bash / Git Bash / WSL（当前终端有效）
 export AIBOX_API_KEY="your_api_key"
 ```
 
-Optional override for base URL:
+### Base URL（通常无需修改）
 
 ```bash
-export AIBOX_BASE_URL="http://aidev.nicebox.cn/api/openclaw"
+# 仅当 NiceBox API 地址变更时才需设置
+$env:AIBOX_BASE_URL="http://aidev.nicebox.cn/api/openclaw"
 ```
 
 ## API Specification
@@ -455,7 +484,7 @@ The `POST /ai_tools/getCompanyInfo` API requires these fields:
 | Field | Required | Note |
 |-------|---------|------|
 | `company_name` | ✅ Yes | 公司/网站名称，必填 |
-| `business_scope` | ✅ Yes | 业务范围，必填 |
+| `business_scope` | No | 业务范围 |
 | `industry` | No | 所属行业 |
 | `advantages` | No | 核心竞争优势 |
 | `phone` | No | 联系电话 |
@@ -544,6 +573,7 @@ This skill assumes the following API paths (relative to the Base URL `http://aid
 * `GET /site_publish/getServerInfo`
 * `GET /site_publish/getTaskStatus`
 * `POST /site_publish/cancelTask`
+* `POST /material/upload`
 
 **Important**: The FTP publishing endpoints are under the `site_publish` controller, NOT `ftp`. Full example URLs:
 - `http://aidev.nicebox.cn/api/openclaw/site_publish/getConfig`
@@ -576,8 +606,8 @@ If your actual backend uses different paths, update the `BASE_URL` constant in t
 
 **永远顺序：读文档 → 用文档路径 → 最后才尝试变体。**
 
-### "公司名称/网站名称不能为空" or "业务范围不能为空"
-The `getCompanyInfo` API requires `company_name`, `business_scope` fields to be non-empty. Store undefined fields as `"未填写"`.
+### "公司名称/网站名称不能为空"
+The `getCompanyInfo` API requires `company_name` fields to be non-empty. Store undefined fields as `"未填写"`.
 
 ### Logo field is empty
 Use a placeholder image URL:
@@ -653,3 +683,152 @@ If you need to run Python scripts for other commands (publish, list, etc.), ensu
 - 生成前需确保站点已初始化（通过 `template/initializeData`）
 - 生成成功后，状态文件会保留（不再立即删除），方便重试
 - 生成成功后会输出结构化确认请求（`need_publish_confirm: true`），AI 必须询问用户是否发布，不得自动发布
+
+## Upload material
+
+Upload images to your site's cloud resource library, automatically detecting the file type based on recent conversation context.
+
+### 🔍 自动判断上传类型逻辑
+
+**AI 必须严格遵循以下判断逻辑**：
+
+1. **30分钟内上下文检测**：
+   - 检查最近 30 分钟内的对话是否涉及上传类型
+   - 如果无相关上下文，询问客户："检测到您上传了图片，请问这是什么类型的图片？是否要上传到网站站点的云资源库中？"
+
+2. **Logo 文件特殊处理**：
+   - 如果 30 分钟内存在上传类型且为 `logo`：
+     - 检查对话历史是否已经上传过 logo
+     - 如果已上传过，则当作无上传类型处理（重新询问）
+     - 如果未上传过，则直接上传为 `guide_logo` 类型
+
+3. **自动类型检测**（文件名匹配）：
+   - **Logo**：文件名包含 `logo`
+   - **产品图片**：文件名包含 `product`、`产品`、`商品`
+   - **新闻图片**：文件名包含 `news`、`新闻`、`资讯`
+   - **其他图片**：默认 `openclaw_other`
+
+### 📝 上传后处理
+
+1. **记录返回路径**：上传成功后，必须记录返回的 `filePath` 和 `fileId`
+2. **后续操作使用**：在后续的网站生成或内容发布中，如需使用该图片，应使用记录的路径
+3. **重复文件处理**：如果上传相同文件，API 会返回已有文件的 ID（`isOld: true`），应正常处理
+
+### Python version:
+```bash
+python3 {baseDir}/scripts/upload_material.py upload path/to/image.jpg
+python3 {baseDir}/scripts/upload_material.py upload path/to/logo.png --source guide_logo
+python3 {baseDir}/scripts/upload_material.py upload path/to/product.jpg --source openclaw_products
+```
+
+### Node.js version:
+```bash
+node {baseDir}/scripts/upload_material.mjs upload path/to/image.jpg
+node {baseDir}/scripts/upload_material.mjs upload path/to/logo.png --source guide_logo
+node {baseDir}/scripts/upload_material.mjs upload path/to/product.jpg --source openclaw_products
+```
+
+### Options:
+- `upload`: Upload file
+- `--source`: Manually specify file type (choices: `guide_logo`, `openclaw_products`, `openclaw_news`)
+
+### API Specification
+
+**Endpoint**: `POST /material/upload`
+
+**Request form data**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `file` | ✅ | File to upload (for non-logo files) |
+| `logoFile` | ✅ | File to upload (for logo files only) |
+| `source` | ✅ | File type: `guide_logo`, `openclaw_products`, `openclaw_news` |
+
+**Response**:
+
+```json
+{
+  "code": 0,
+  "message": "上传成功",
+  "data": {
+    "fileId": 123,
+    "filePath": "https://example.com/path/to/image.jpg",
+    "fileType": "image/jpeg",
+    "fileName": "image.jpg",
+    "isOld": false
+  }
+}
+```
+
+**Important**:
+- Maximum file size: 10MB
+- Supported image formats: JPG, PNG, GIF, WebP
+- Files are automatically organized into folders based on type:
+  - `guide_logo` → `guideLogo` folder
+  - `openclaw_products` → `OpenClawlawProducts` folder
+  - `openclaw_news` → `OpenClawlawNews` folder
+  - `openclaw_other` → root of "My Files"
+
+### 🌐 完整 API 路径
+
+- `http://aidev.nicebox.cn/api/openclaw/material/upload`
+
+## Generate share URL
+
+Generate a temporary share URL for your site.
+
+### 说明
+
+当客户要求生成【预览地址、临时地址】时，使用此功能生成临时分享地址。
+
+**有效期提示：** 临时分享链接有效期为 **2 小时**，请提醒客户及时查看。
+
+### ⚠️ 【强制】前置内容检查
+
+生成分享链接前，**必须**先调用 `GET /site_pages/getLanguageList` 检查 `data.total`：
+
+| total 值 | 含义 | 操作 |
+|---------|------|------|
+| `> 0` | 站点已有语言配置（已有网站内容） | ✅ 继续生成分享链接 |
+| `= 0` | 站点无内容 | ❌ 终止，提示用户「站点暂无网站内容，请先生成并发布网站后再生成分享链接」 |
+
+```
+用户要求生成分享链接
+    ↓
+调用 GET /site_pages/getLanguageList
+    ↓
+检查 data.total
+    ├── ✅ total > 0 → 生成分享链接 → 输出 URL
+    └── ❌ total = 0 → 终止操作 → 提示用户
+```
+
+### Python version:
+```bash
+python3 {baseDir}/scripts/generate_share_url.py
+```
+
+### Node.js version:
+```bash
+node {baseDir}/scripts/generate_share_url.mjs
+```
+
+### API Specification
+
+**Endpoint**: `GET /site/generateShareUrl`
+
+**Response**:
+
+```json
+{
+  "code": 0,
+  "message": "成功",
+  "data": {
+    "site_id": 123,
+    "share_url": "http://aidev.nicebox.cn/api/template/preview/share/token/123-1618764000-abc123"
+  }
+}
+```
+
+### 🌐 完整 API 路径
+
+- `http://aidev.nicebox.cn/api/openclaw/site/generateShareUrl`
