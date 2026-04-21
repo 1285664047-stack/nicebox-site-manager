@@ -18,7 +18,7 @@ const ENDPOINT_UPLOAD = '/material/upload';
  */
 function loadConfig() {
   // 从环境变量构造
-  const baseUrl = process.env.AIBOX_BASE_URL || "http://aidev.nicebox.cn/api/openclaw";
+  const baseUrl = process.env.AIBOX_BASE_URL || "https://ai.nicebox.cn/api/openclaw";
   const apiKey = process.env.AIBOX_API_KEY || "";
   
   if (!apiKey) {

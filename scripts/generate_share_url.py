@@ -7,7 +7,7 @@ import requests
 import json
 
 # 基础URL
-BASE_URL = os.environ.get("AIBOX_BASE_URL", "http://aidev.nicebox.cn/api/openclaw")
+BASE_URL = os.environ.get("AIBOX_BASE_URL", "https://ai.nicebox.cn/api/openclaw")
 
 # API路径
 ENDPOINT_SHARE_URL = "/site/generateShareUrl"
@@ -15,7 +15,7 @@ ENDPOINT_SHARE_URL = "/site/generateShareUrl"
 def load_config():
     """加载配置"""
     # 从环境变量构造
-    base_url = os.environ.get("AIBOX_BASE_URL", "http://aidev.nicebox.cn/api/openclaw")
+    base_url = os.environ.get("AIBOX_BASE_URL", "https://ai.nicebox.cn/api/openclaw")
     api_key = os.environ.get("AIBOX_API_KEY", "")
     
     if not api_key:

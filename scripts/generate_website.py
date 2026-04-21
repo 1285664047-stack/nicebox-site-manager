@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 
-BASE_URL = os.environ.get("AIBOX_BASE_URL", "http://aidev.nicebox.cn/api/openclaw")
+BASE_URL = os.environ.get("AIBOX_BASE_URL", "https://ai.nicebox.cn/api/openclaw")
 API_KEY = os.environ.get("AIBOX_API_KEY", "")
 
 ENDPOINT_LANGUAGE_LIST = f"{BASE_URL}/site_pages/getLanguageList"

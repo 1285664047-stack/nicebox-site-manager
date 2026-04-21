@@ -18,7 +18,7 @@ import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
 
 // 读取 API 配置（环境变量优先）
-const BASE_URL = process.env.AIBOX_BASE_URL || "http://aidev.nicebox.cn/api/openclaw";
+const BASE_URL = process.env.AIBOX_BASE_URL || "https://ai.nicebox.cn/api/openclaw";
 const API_KEY  = process.env.AIBOX_API_KEY  || "";
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const STATE_FILE = path.join(SCRIPT_DIR, ".dialogue_state.json");

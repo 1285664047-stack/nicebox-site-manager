@@ -2,7 +2,7 @@
 
 import fetch from 'node-fetch';
 
-const BASE_URL        = process.env.AIBOX_BASE_URL || "http://aidev.nicebox.cn/api/openclaw";
+const BASE_URL        = process.env.AIBOX_BASE_URL || "https://ai.nicebox.cn/api/openclaw";
 const ENDPOINT_LANG  = "/site_pages/getLanguageList";
 const ENDPOINT_SHARE = "/site/generateShareUrl";
 

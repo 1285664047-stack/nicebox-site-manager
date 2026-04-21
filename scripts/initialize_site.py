@@ -13,7 +13,7 @@ import urllib.request
 import urllib.error
 
 
-DEFAULT_BASE_URL = "http://aidev.nicebox.cn/api/openclaw"
+DEFAULT_BASE_URL = "https://ai.nicebox.cn/api/openclaw"
 ENDPOINT_INITIALIZE = "/template/initializeData"
 
 

@@ -11,7 +11,7 @@ Manage AI-built websites through the NiceBox OpenClaw API.
 Base URL:
 
 ```
-http://aidev.nicebox.cn/api/openclaw
+https://ai.nicebox.cn/api/openclaw
 ```
 
 Authentication:
@@ -399,7 +399,7 @@ export AIBOX_API_KEY="your_api_key"
 
 ```bash
 # 仅当 NiceBox API 地址变更时才需设置
-$env:AIBOX_BASE_URL="http://aidev.nicebox.cn/api/openclaw"
+$env:AIBOX_BASE_URL="https://ai.nicebox.cn/api/openclaw"
 ```
 
 ## API Specification
@@ -493,7 +493,7 @@ Response fields: `has_more` (boolean), `total_batches` (number), `generated_page
 
 ## Default endpoint assumptions
 
-This skill assumes the following API paths (relative to the Base URL `http://aidev.nicebox.cn/api/openclaw`):
+This skill assumes the following API paths (relative to the Base URL `https://ai.nicebox.cn/api/openclaw`):
 
 * `POST /article/publish`
 * `GET /article/getCategories`
@@ -516,13 +516,13 @@ This skill assumes the following API paths (relative to the Base URL `http://aid
 * `POST /material/upload`
 
 **Important**: The FTP publishing endpoints are under the `site_publish` controller, NOT `ftp`. Full example URLs:
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/getConfig`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/testFtpConnection`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/getServerInfo`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/getTaskStatus`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/cancelTask`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/preparePublish`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/publish`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/getConfig`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/testFtpConnection`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/getServerInfo`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/getTaskStatus`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/cancelTask`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/preparePublish`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/publish`
 
 If your actual backend uses different paths, update the `BASE_URL` constant in the scripts.
 
@@ -563,11 +563,11 @@ If `generateWebsite` returns `{"type":"error","content":"参数缺失，无法�
 **先读 SKILL.md 再动手。**
 
 FTP 相关接口路径是 `site_publish`，不是 `ftp`。完整路径：
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/getConfig`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/getServerInfo`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/updateFtpConfig`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/testFtpConnection`
-- `http://aidev.nicebox.cn/api/openclaw/site_publish/publish`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/getConfig`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/getServerInfo`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/updateFtpConfig`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/testFtpConnection`
+- `https://ai.nicebox.cn/api/openclaw/site_publish/publish`
 
 **永远不要凭记忆猜测 API 路径。**
 
@@ -711,7 +711,7 @@ node {baseDir}/scripts/upload_material.mjs upload path/to/product.jpg --source o
 
 ### 🌐 完整 API 路径
 
-- `http://aidev.nicebox.cn/api/openclaw/material/upload`
+- `https://ai.nicebox.cn/api/openclaw/material/upload`
 
 ## Generate share URL
 
@@ -764,11 +764,11 @@ node {baseDir}/scripts/generate_share_url.mjs
   "message": "成功",
   "data": {
     "site_id": 123,
-    "share_url": "http://aidev.nicebox.cn/api/template/preview/share/token/123-1618764000-abc123"
+    "share_url": "https://ai.nicebox.cn/api/template/preview/share/token/123-1618764000-abc123"
   }
 }
 ```
 
 ### 🌐 完整 API 路径
 
-- `http://aidev.nicebox.cn/api/openclaw/site/generateShareUrl`
+- `https://ai.nicebox.cn/api/openclaw/site/generateShareUrl`

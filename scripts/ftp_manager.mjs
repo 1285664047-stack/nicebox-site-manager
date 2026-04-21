@@ -32,7 +32,7 @@ const ENDPOINT_PREPARE_PUBLISH = '/site_publish/preparePublish';
  */
 function loadConfig() {
   // 从环境变量构造（与 generate_website.mjs 保持一致）
-  const baseUrl = process.env.AIBOX_BASE_URL || "http://aidev.nicebox.cn/api/openclaw";
+  const baseUrl = process.env.AIBOX_BASE_URL || "https://ai.nicebox.cn/api/openclaw";
   const apiKey  = process.env.AIBOX_API_KEY  || "";
   const siteId  = process.env.AIBOX_SITE_ID  || "";
   
