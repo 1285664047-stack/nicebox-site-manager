@@ -173,10 +173,27 @@ node {baseDir}/scripts/generate_website.mjs status            # 查看进度
 node {baseDir}/scripts/generate_website.mjs questions         # 列出全部8问
 node {baseDir}/scripts/generate_website.mjs next              # 打印下一题
 node {baseDir}/scripts/generate_website.mjs answer "内容"     # 记录回答
+node {baseDir}/scripts/generate_website.mjs answer --input-file /path/to/input.txt  # 从文件读取回答（解决中文编码问题）
 node {baseDir}/scripts/generate_website.mjs summary           # 汇总确认
 node {baseDir}/scripts/generate_website.mjs generate          # 【第4步】生成网站（第2次确认）
 node {baseDir}/scripts/generate_website.mjs reset             # 重置对话
 ```
+
+### ⚠️ 中文编码问题解决方案
+
+**问题背景**：Windows PowerShell 默认使用 GBK 编码，而 Node.js 期望 UTF-8。直接通过命令行参数传递中文可能导致乱码。
+
+**解决方案**：使用 `--input-file` 选项从文件读取输入：
+
+```bash
+# 1. 先将中文内容写入临时文件（UTF-8 编码）
+# 2. 使用 --input-file 选项从文件读取
+node {baseDir}/scripts/generate_website.mjs answer --input-file /tmp/user_input.txt
+```
+
+**自动修复**：脚本已内置乱码检测功能，如果检测到状态文件中的中文是乱码，会自动重置状态。
+
+---
 
 ### 8 个核心问题（精简版）：
 

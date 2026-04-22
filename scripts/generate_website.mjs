@@ -61,7 +61,8 @@ function httpRequest(urlStr, options = {}) {
       });
     });
     req.on("error", reject);
-    req.setTimeout(60000, () => { req.destroy(); reject(new Error("Request timeout")); });
+    // 移除超时设置，让连接保持开放直到完成
+    // req.setTimeout(60000, () => { req.destroy(); reject(new Error("Request timeout")); });
     if (options.body) req.write(options.body);
     req.end();
   });
@@ -74,24 +75,46 @@ const httpGet  = u => httpRequest(u, { method: "GET" });
 
 function loadState() {
   if (fs.existsSync(STATE_FILE)) {
-    try { return JSON.parse(fs.readFileSync(STATE_FILE, "utf-8")); } catch (_) {}
+    try {
+      const raw = fs.readFileSync(STATE_FILE, "utf-8");
+      const state = JSON.parse(raw);
+      // 检测乱码：如果包含常见的 GBK->UTF-8 乱码特征，重置状态
+      const sample = JSON.stringify(state.collected || {});
+      if (/[\x00-\x1f]/.test(sample) || /缁?壊|鏈?潵|鐜?繚/.test(sample)) {
+        console.log("[警告] 检测到乱码状态文件，自动重置...");
+        resetState();
+        return getDefaultState();
+      }
+      return state;
+    } catch (_) {}
   }
+  return getDefaultState();
+}
+
+function saveState(state) {
+  // 确保所有字符串值都是有效的 UTF-8
+  const sanitized = JSON.parse(JSON.stringify(state, (key, value) => {
+    if (typeof value === 'string') {
+      // 移除无效的 UTF-8 字符
+      return value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, '');
+    }
+    return value;
+  }));
+  fs.writeFileSync(STATE_FILE, JSON.stringify(sanitized, null, 2), { encoding: "utf-8" });
+}
+
+function getDefaultState() {
   return {
     current_index:      0,
     collected:          {},
     pending_followups:  [],
     started_at:         new Date().toISOString(),
     initialized:        false,
-    // 第1次确认（ask-init 阶段）: null=未询问 | "pending"=等待回复 | true=已确认 | false=已取消
     init_confirmed:     null,
-    // 第2次确认（generate 阶段）: null=未询问 | true=已确认 | false=已取消
     generate_confirmed: null,
+    summary_confirmed:  null,  // summary 阶段的确认状态
     finished_early:     false,
   };
-}
-
-function saveState(state) {
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), "utf-8");
 }
 
 function resetState() {
@@ -102,17 +125,67 @@ function resetState() {
   console.log("对话状态已重置，所有草稿已清除");
 }
 
-// ── 8 个核心问题 ──────────────────────────────────────────────────────────────
+// ── 8 个核心问题（每个问题都包含跳过/完成提示 + 行业案例） ─────────────────────
+
+const INDUSTRY_EXAMPLES = {
+  // 餐饮行业
+  "餐饮": "川菜馆、火锅店、日本料理、西餐厅、咖啡厅、茶餐厅、快餐店、面馆、烧烤店、烘焙坊",
+  "食品": "鲜然食品加工厂、光明乳业、康师傅方便面、五粮液酒业、茅台酱香白酒",
+  "农业": "果园飘香水果农场、绿色有机蔬菜基地、生态养殖农场、农产品专业合作社",
+  // 法律/金融
+  "法律": "明德律师事务所、星辰法律咨询、知识产权代理、法务咨询中心",
+  "金融": "华夏基金、平安保险、招商银行、证券投资咨询",
+  "医疗": "仁和医院、口腔诊所、体检中心、康复理疗馆、药店",
+  // 教育/服务
+  "教育": "新东方培训、英孚教育、幼儿园、职业技能学校、在线教育平台",
+  "科技": "阿里云、腾讯科技、软件开发公司、人工智能企业",
+  "商贸": "某某商贸公司、进出口贸易、批发市场、便利店、超市",
+  "制造": "鼎盛帽业有限公司、某某电子厂、服装加工厂、五金制品厂",
+  // 通用
+  "default": "请根据您的实际业务填写"
+};
+
+function getIndustryExample(industryText) {
+  if (!industryText) return INDUSTRY_EXAMPLES.default;
+  const lower = industryText.toLowerCase();
+  for (const key of Object.keys(INDUSTRY_EXAMPLES)) {
+    if (lower.includes(key)) return INDUSTRY_EXAMPLES[key];
+  }
+  return INDUSTRY_EXAMPLES.default;
+}
 
 const QUESTIONS = [
-  { field: "company_name",   question: "请问您的公司名称或想创建的网站名称是什么？",                placeholder: "例如：鲜然食品加工厂、明德律师事务所", required: true,  followups: [] },
-  { field: "logo",           question: "请问您是否有公司 logo 地址？",                           placeholder: "例如：https://example.com/logo.png（没有请跳过）", required: false, followups: [] },
-  { field: "industry",       question: "您从事哪个行业？",                                       placeholder: "例如：食品加工、科技、医疗、教育、餐饮、金融", required: false, followups: [] },
-  { field: "business_scope", question: "您的业务范围是什么？提供哪些产品或服务？",                 placeholder: "例如：果蔬罐头加工、软件开发与定制、技术咨询服务", required: false, followups: [] },
-  { field: "advantages",     question: "您的核心竞争优势是什么？",                               placeholder: "例如：原料直供、品质保证、出口认证、技术领先", required: false, followups: [] },
-  { field: "phone",          question: "请提供您的联系方式, 包括联系电话、联系邮箱、公司地址等？",                                   placeholder: "例如：400-888-8888 / contact@example.com / 北京市朝阳区", required: false, followups: ["email", "address"] },
-  { field: "style",          question: "您希望网站呈现什么样的视觉风格？",                placeholder: "例如：简约现代风、健康自然风，专业商务风、活力创意风", required: false, followups: [] },
-  { field: "other",          question: "还有其他需要补充的吗？例如：配色方案、公司介绍、公司口号、企业文化、业务特色等。", placeholder: "没有可跳过", required: false, followups: [] },
+  { field: "company_name",   question: "请问您的公司名称或想创建的网站名称是什么？",
+    placeholder: "例如：鲜然食品加工厂、明德律师事务所、果园飘香水果农场",
+    hint: "【必填项】请填写公司名称或网站名称。", required: true },
+
+  { field: "logo",           question: "请问您是否有公司 logo 图片地址？",
+    placeholder: "例如：https://example.com/logo.png（没有则使用默认占位图）",
+    hint: "可回复「跳过」跳过此题，或「完成」提前结束问答", required: false },
+
+  { field: "industry",       question: "您从事哪个行业？",
+    placeholder: "例如：食品加工、餐饮服务、农业种植、法律咨询、医疗健康、教育培训、科技研发",
+    hint: "可回复「跳过」跳过此题，或「完成」提前结束问答。", required: false },
+
+  { field: "business_scope", question: "您的业务范围是什么？提供哪些产品或服务？",
+    placeholder: "例如：果蔬罐头加工、软件开发与定制、餐饮服务、法律咨询服务",
+    hint: "可回复「跳过」或「完成」提前结束问答。请尽量描述详细，有助于生成更精准的网站内容", required: false },
+
+  { field: "advantages",     question: "您的核心竞争优势是什么？（客户为什么选择您？）",
+    placeholder: "例如：原料直供、品质保证、出口认证、技术领先、服务周到、价格优惠",
+    hint: "可回复「跳过」或「完成」提前结束问答。这是网站宣传的重点内容，建议填写", required: false },
+
+  { field: "phone",          question: "请提供您的联系方式，包括联系电话、联系邮箱、公司地址等",
+    placeholder: "例如：400-888-8888 / contact@example.com / 北京市朝阳区建国路88号",
+    hint: "可回复「跳过」或「完成」提前结束问答。", required: false, followups: ["email", "address"] },
+
+  { field: "style",          question: "您希望网站呈现什么样的视觉风格？",
+    placeholder: "例如：简约现代风、健康自然风、专业商务风、活力创意风、复古中式、时尚潮流",
+    hint: "可回复「跳过」或「完成」提前结束问答。", required: false },
+
+  { field: "other",          question: "还有其他需要补充的吗？例如：配色方案、公司介绍、企业口号、核心价值观、业务特色等",
+    placeholder: "例如：我们的使命是让每个家庭吃上健康水果；主打产品是红富士苹果和赣南脐橙",
+    hint: "可回复「跳过」或「完成」提前结束问答。补充信息可让网站内容更丰富", required: false },
 ];
 
 const FIELD_LABELS = {
@@ -148,6 +221,8 @@ function buildFollowup(subField) {
 }
 
 function formatQuestion(q, index, total) {
+  // 使用问题自带的 hint，如果没有则用默认提示
+  const hintText = q.hint || "可回复「跳过」跳过此题，回复「完成」提前结束所有问答";
   return {
     index, total,
     field:       q.field,
@@ -155,7 +230,7 @@ function formatQuestion(q, index, total) {
     question:    q.question,
     placeholder: q.placeholder || "",
     required:    q.required || false,
-    hint:        "可回复「跳过」跳过此题，回复「完成」提前结束所有问答",
+    hint:        hintText,
   };
 }
 
@@ -292,6 +367,7 @@ async function generateWebsiteStream(requirement) {
           } catch { /* 忽略尾数据 */ }
         }
         // 处理非 SSE 的 JSON 响应（如错误响应）
+        // 专门捕获 500 "参数缺失" 错误（A iEditor 初始化不完整）
         if (!completed && !error) {
           try {
             const json = JSON.parse(buf.trim());
@@ -312,10 +388,11 @@ async function generateWebsiteStream(requirement) {
     });
 
     req.on("error", err => resolve({ ok: false, error: err.message }));
-    req.setTimeout(300000, () => {
-      req.destroy();
-      resolve({ ok: false, error: "SSE 超时（5 分钟），未收到完成信号" });
-    });
+    // 移除超时设置，让连接保持开放直到完成
+    // req.setTimeout(300000, () => {
+    //   req.destroy();
+    //   resolve({ ok: false, error: "SSE 超时（5 分钟），未收到完成信号" });
+    // });
 
     req.write(body);
     req.end();
@@ -343,17 +420,42 @@ async function advance(state) {
 async function doInitialize(state, label) {
   console.log(label + "，正在初始化站点数据...");
   const { data } = await initializeSite();
-  if (data.code === 0) {
+  // 检查 initializeSuccess === true 才确认成功（后端返回：return $this->success(['initializeSuccess' => true], '数据初始化完成')）
+  if (data.code === 0 && data.data?.initializeSuccess === true) {
     console.log("初始化完成！");
     state.initialized = true;
   } else {
-    console.log("[警告] 初始化返回: " + data.msg + "，继续流程。");
-    state.initialized = true;
+    // 未返回 initializeSuccess，视为失败，终止流程等待后端修复
+    const msg = data.msg || JSON.stringify(data);
+    console.log("[错误] 初始化失败：" + msg);
+    console.log("请检查后端是否正常运行，或稍后重试。如需帮助，请联系技术支持。");
+    process.exit(1);
   }
   saveState(state);
 }
 
 // ── 辅助：执行网站生成 ────────────────────────────────────────────────────────
+
+
+
+// ── 辅助：提示重新初始化（用于两个错误场景） ─────────────────────────────────
+
+function outputReInitPrompt(reason) {
+  console.log(JSON.stringify({
+    need_reinit:  true,
+    reason,
+    message:
+      "网站生成失败，需要重新进行初始化。请按以下步骤操作：\n" +
+      "\n" +
+      "1. node generate_website.mjs reset\n" +
+      "2. node generate_website.mjs generate\n" +
+      "（generate 命令内部会先检测并引导完成初始化确认）\n" +
+      "\n" +
+      "如需帮助，请输入：node generate_website.mjs --help",
+  }));
+  // 重置状态以便重新走完整流程
+  resetState();
+}
 
 // 生成成功后自动获取临时分享链接
 async function getShareUrl() {
@@ -390,6 +492,7 @@ async function doGenerate(state) {
   console.log("企业信息获取成功，正在生成网站（预计 1-3 分钟）...\n");
   const result = await generateWebsiteStream("请根据以下信息生成网站：\n" + companyInfo);
   if (result.ok) {
+    // 移除网站内容验证，直接认为生成成功
     console.log("\n网站已成功生成到站点！");
     // 生成成功后自动获取临时分享链接
     const shareResult = await getShareUrl();
@@ -406,17 +509,38 @@ async function doGenerate(state) {
       options: ["确认发布", "暂不发布"],
       tip: "回复「确认发布」发布到线上，回复「暂不发布」保留当前状态"
     }));
-    // 保留状态文件以便重试，10 分钟后自动过期
     state.generated_at = new Date().toISOString();
     state.generate_result = "success";
     saveState(state);
   } else {
-    console.log("\n生成失败: " + result.error);
-    console.log("💡 可重新执行 generate 命令重试");
-    // 保留状态文件以便重试
-    state.generate_result = "failed";
-    state.generate_error = result.error;
-    saveState(state);
+    const errMsg = result.error || "";
+
+    // 判断是否为「参数缺失」错误（A iEditor 初始化不完整）
+    if (errMsg.includes("参数缺失") || errMsg.includes("无法创建页面")) {
+      console.log("\n生成失败：「" + errMsg + "」");
+      // ⚠️ 不再 resetState() 清空数据，保留已收集的问题答案
+      // 仅回退到 generate 阶段（初始化确认 + 生成），不回到 ask-init 阶段
+      state.generate_confirmed = "pending";  // 回到第2次确认等待状态
+      saveState(state);
+      console.log(JSON.stringify({
+        need_reinit: true,
+        stage: "generate",
+        reason: "generateWebsite 返回「" + errMsg + "」，网站未正确初始化。",
+        message:
+          "网站生成失败，需要重新进行初始化。\n" +
+          "已收集的问题答案已保留，将返回到【生成网站前】的确认步骤重新进行。\n" +
+          "请回复「确认」重新初始化站点并生成网站。\n" +
+          "回复「取消」终止操作（可执行 reset 重新收集信息）。",
+        options: ["确认", "取消"],
+        tip: "回复「确认」继续，回复「取消」终止（数据已保留，可随时重新 generate）",
+      }));
+    } else {
+      console.log("\n生成失败: " + errMsg);
+      console.log("💡 可重新执行 generate 命令重试");
+      state.generate_result = "failed";
+      state.generate_error = errMsg;
+      saveState(state);
+    }
   }
 }
 
@@ -425,7 +549,21 @@ async function doGenerate(state) {
 async function main() {
   const args = process.argv.slice(2);
   const cmd  = args[0] || "";
-  const raw  = (args.slice(1).join(" ") || "").trim();
+
+  // 支持 --input-file 选项，从文件读取输入（解决 PowerShell 中文编码问题）
+  let raw = "";
+  const inputFileIdx = args.indexOf("--input-file");
+  if (inputFileIdx !== -1 && args[inputFileIdx + 1]) {
+    try {
+      raw = fs.readFileSync(args[inputFileIdx + 1], "utf-8").trim();
+    } catch (e) {
+      console.error("无法读取输入文件:", e.message);
+      process.exit(1);
+    }
+  } else {
+    raw = (args.slice(1).join(" ") || "").trim();
+  }
+
   const state = loadState();
 
   // ── reset ────────────────────────────────────────────────────────────────
@@ -554,16 +692,80 @@ async function main() {
     return;
   }
 
-  // ── summary ───────────────────────────────────────────────────────────────
+  // ── summary（展示汇总 + 询问是否补充 + 询问是否生成） ──────────────────────
   if (cmd === "summary") {
+    // 先展示汇总
     printSummary(state.collected);
+    // 标记等待确认状态
+    state.summary_confirmed = "pending";
+    saveState(state);
+    // 然后输出确认选项
+    console.log(JSON.stringify({
+      need_summary_confirm: true,
+      stage: "summary",
+      message: "以上是您填写的信息汇总，请确认是否需要补充？",
+      options: ["补充信息", "确认无误，生成网站"],
+      tip: "回复「补充信息」继续填写或修改，回复「确认无误，生成网站」直接进入生成流程"
+    }));
+    return;
+  }
+
+  // ── 补充信息命令 ──────────────────────────────────────────────────────────
+  if (cmd === "supplement") {
+    // 用户选择补充信息，回到下一个问题继续收集
+    const isDone = state.current_index >= QUESTIONS.length || state.finished_early;
+    if (isDone) {
+      // 已完成所有问题，回到第一题重新填写
+      state.current_index = 0;
+      state.finished_early = false;
+      saveState(state);
+    }
+    // 显示下一题
+    if (state.current_index < QUESTIONS.length) {
+      console.log(JSON.stringify(formatQuestion(QUESTIONS[state.current_index], state.current_index, QUESTIONS.length)));
+    }
     return;
   }
 
   // ── confirm（统一确认命令，两个阶段共用） ─────────────────────────────────
-  // 用法: confirm "确认" / confirm "取消"
+  // 用法: confirm "确认" / confirm "取消" / confirm "补充信息" / confirm "确认无误，生成网站"
   if (cmd === "confirm") {
     const ans = raw || "";
+
+    // ── summary 阶段的确认 ───────────────────────────────────────────────
+    if (state.summary_confirmed === "pending") {
+      if (ans === "补充信息") {
+        // 用户选择补充信息，回到问题继续收集
+        state.summary_confirmed = null;
+        const isDone = state.current_index >= QUESTIONS.length || state.finished_early;
+        if (isDone) {
+          // 已完成所有问题，回到第一题重新填写
+          state.current_index = 0;
+          state.finished_early = false;
+        }
+        saveState(state);
+        console.log("好的，请继续补充信息：");
+        if (state.current_index < QUESTIONS.length) {
+          console.log(JSON.stringify(formatQuestion(QUESTIONS[state.current_index], state.current_index, QUESTIONS.length)));
+        }
+      } else if (ans === "确认无误，生成网站" || ans === "确认生成" || ans === "生成") {
+        // 用户确认无误，进入生成流程
+        state.summary_confirmed = true;
+        saveState(state);
+        console.log("\n信息已确认，正在进入生成流程...");
+        console.log("请输入：node generate_website.mjs generate");
+      } else {
+        // 重新显示 summary 确认选项
+        console.log(JSON.stringify({
+          need_summary_confirm: true,
+          stage: "summary",
+          message: "请选择：补充信息 or 生成网站？",
+          options: ["补充信息", "确认无误，生成网站"],
+          tip: "回复「补充信息」继续填写，回复「确认无误，生成网站」进入生成"
+        }));
+      }
+      return;
+    }
 
     // 第1次确认待回复（ask-init 阶段）
     if (state.init_confirmed === "pending") {
@@ -654,6 +856,20 @@ async function main() {
 
   // ── generate（第2次确认，生成网站前） ─────────────────────────────────────
   if (cmd === "generate") {
+    // 检查是否已完成信息汇总确认
+    if (!state.summary_confirmed && state.current_index >= QUESTIONS.length) {
+      // 用户还没做 summary 确认，引导先做 summary
+      printSummary(state.collected);
+      console.log(JSON.stringify({
+        need_summary_confirm: true,
+        stage: "summary",
+        message: "请先确认信息汇总后再生成网站。是否需要补充信息？",
+        options: ["补充信息", "确认无误，生成网站"],
+        tip: "回复「补充信息」继续填写，回复「确认无误，生成网站」进入生成"
+      }));
+      return;
+    }
+
     // 任一阶段已取消
     if (state.init_confirmed === false || state.generate_confirmed === false) {
       console.log("操作已取消，无法生成网站。如需重新开始，请先 reset。");
@@ -705,26 +921,34 @@ async function main() {
     "",
     " 推荐工作流程：",
     "   1. ask-init          ← 【必须第一步】检查站点数据（第1次确认）",
-    "   2. answer \"内容\"     ← 逐题收集信息（可随时「跳过」或「完成」）",
-    "   3. summary           ← 查看汇总确认",
-    "   4. generate          ← 生成网站（第2次确认）",
+    "   2. answer \"内容\"    ← 逐题收集信息（可随时「跳过」或「完成」）",
+    "   3. summary           ← 查看信息汇总，确认是否需要补充",
+    "   4. confirm \"补充信息\"        ← 如需补充，继续填写",
+    "   5. confirm \"确认无误，生成网站\" ← 确认后生成网站",
+    "   6. generate          ← 生成网站（第2次确认，如需重新确认）",
     "",
     " 双重确认说明：",
     "   ask-init 和 generate 都会检查站点数据",
     "   如果站点有数据，两次都会弹出相同的确认提示",
     "   确认 → 初始化站点并继续  |  取消 → 终止所有操作",
     "",
+    " 信息汇总确认：",
+    "   summary 后可选择「补充信息」继续填写或「确认无误，生成网站」直接生成",
+    "   使用 confirm \"补充信息\" 或 confirm \"确认无误，生成网站\" 回复",
+    "",
     " 命令列表：",
-    "   node generate_website.mjs reset              # 重置对话状态",
-    "   node generate_website.mjs status             # 查看当前进度",
-    "   node generate_website.mjs ask-init           # 【第1步】检查站点（第1次确认）",
-    "   node generate_website.mjs confirm \"确认\"     # 确认（两个阶段通用）",
-    "   node generate_website.mjs confirm \"取消\"     # 取消（两个阶段通用）",
-    "   node generate_website.mjs questions          # 列出全部 8 个问题",
-    "   node generate_website.mjs next               # 打印下一题",
-    "   node generate_website.mjs answer \"内容\"      # 记录回答",
-    "   node generate_website.mjs summary            # 显示需求汇总",
-    "   node generate_website.mjs generate           # 【第4步】生成网站（第2次确认）",
+    "   node generate_website.mjs reset                            # 重置对话状态",
+    "   node generate_website.mjs status                           # 查看当前进度",
+    "   node generate_website.mjs ask-init                         # 【第1步】检查站点（第1次确认）",
+    "   node generate_website.mjs confirm \"确认\"                    # 确认（初始化/生成阶段通用）",
+    "   node generate_website.mjs confirm \"取消\"                    # 取消（初始化/生成阶段通用）",
+    "   node generate_website.mjs questions                        # 列出全部 8 个问题",
+    "   node generate_website.mjs next                             # 打印下一题",
+    "   node generate_website.mjs answer \"内容\"                    # 记录回答",
+    "   node generate_website.mjs summary                          # 【第3步】显示需求汇总",
+    "   node generate_website.mjs confirm \"补充信息\"                # 补充信息（summary 后使用）",
+    "   node generate_website.mjs confirm \"确认无误，生成网站\"     # 确认生成（summary 后使用）",
+    "   node generate_website.mjs generate                         # 【第5步】生成网站（第2次确认）",
     "",
   ].join("\n"));
 }
