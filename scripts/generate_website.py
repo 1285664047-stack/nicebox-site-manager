@@ -14,13 +14,18 @@ import argparse
 import json
 import os
 import re
-import socket
 import sys
 import time as time_module
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime
+
+# Windows GBK 编码修复
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except Exception:
+    pass
 
 BASE_URL = os.environ.get("AIBOX_BASE_URL", "https://ai.nicebox.cn/api/openclaw")
 API_KEY = os.environ.get("AIBOX_API_KEY", "")
@@ -29,6 +34,8 @@ ENDPOINT_LANGUAGE_LIST = f"{BASE_URL}/site_pages/getLanguageList"
 ENDPOINT_INITIALIZE = f"{BASE_URL}/template/initializeData"
 ENDPOINT_GET_COMPANY_INFO = f"{BASE_URL}/ai_tools/getCompanyInfo"
 ENDPOINT_GENERATE_WEBSITE = f"{BASE_URL}/ai_tools/generateWebsite"
+ENDPOINT_GENERATE_SHARE_URL = f"{BASE_URL}/site/generateShareUrl"
+ENDPOINT_READ_INDEX_HTML = f"{BASE_URL}/site_pages/readIndexHtml"
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".dialogue_state.json")
 
@@ -114,6 +121,203 @@ FIELD_LABELS = {
     "other": "其他补充",
 }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 智能提示生成（根据已填写内容动态生成相关提示）
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# 公司名称关键词 -> 行业推断
+COMPANY_KEYWORDS_TO_INDUSTRY = {
+    "帽": "帽子设计",
+    "宠物": "宠物服务",
+    "律师": "法律服务",
+    "科技": "科技",
+    "网络": "科技",
+    "软件": "科技",
+    "医疗": "医疗健康",
+    "医院": "医疗健康",
+    "诊所": "医疗健康",
+    "教育": "教育",
+    "培训": "教育",
+    "学校": "教育",
+    "餐饮": "餐饮",
+    "餐厅": "餐饮",
+    "酒店": "餐饮",
+    "金融": "金融服务",
+    "投资": "金融服务",
+    "房产": "房产",
+    "地产": "房产",
+    "美容": "美容美发",
+    "美发": "美容美发",
+    "健身": "健身运动",
+    "装修": "装修设计",
+    "装饰": "装修设计",
+    "物流": "物流运输",
+    "电商": "电子商务",
+}
+
+# 行业关键词 -> 相关业务范围示例
+INDUSTRY_BUSINESS_SCOPE_HINTS = {
+    "帽子": ["帽子设计、帽子定制、帽饰批发", "帽业生产、帽饰零售、品牌帽子"],
+    "宠物": ["宠物医疗、宠物美容、宠物寄养", "宠物诊疗、宠物疫苗、宠物用品销售"],
+    "律师": ["民事诉讼、刑事辩护、企业法务", "合同纠纷、知识产权、法律咨询"],
+    "科技": ["软件开发、系统集成、技术支持", "智能硬件、数据分析、云服务"],
+    "医疗": ["诊疗服务、健康管理、康复护理", "医疗器械、药品销售、健康体检"],
+    "教育": ["课程培训、在线教育、教育咨询", "职业技能、语言培训、K12辅导"],
+    "餐饮": ["餐饮服务、外卖配送、食材供应", "连锁经营、品牌加盟、宴会承办"],
+    "金融": ["贷款服务、投资理财、保险代理", "财富管理、风险评估、金融咨询"],
+    "房产": ["房产中介、房屋租赁、物业管理", "新房销售、二手房交易、装修服务"],
+    "美容": ["美容护肤、美发造型、美甲美睫", "SPA护理、皮肤管理、形象设计"],
+    "健身": ["健身培训、私教课程、运动康复", "健身器材、营养指导、体测服务"],
+    "装修": ["室内设计、装修施工、软装搭配", "家装服务、工装设计、建材销售"],
+    "物流": ["货物运输、仓储服务、配送服务", "供应链管理、国际物流、冷链运输"],
+    "电商": ["网上零售、电商运营、品牌代理", "跨境贸易、直播带货、供应链服务"],
+}
+
+# 行业 -> 视觉风格推荐
+INDUSTRY_STYLE_HINTS = {
+    "帽子": ["时尚简约风，突出帽饰设计感", "活力创意风，展现品牌个性"],
+    "宠物": ["温馨亲切风，传递关爱感", "清新可爱风，吸引宠物主人"],
+    "律师": ["专业严谨风，蓝色或深灰色调", "稳重商务风，体现专业可信"],
+    "科技": ["现代科技风，蓝色/深色系", "简约未来风，渐变色彩"],
+    "医疗": ["清新专业风，蓝绿色调", "温馨治愈风，浅色系"],
+    "教育": ["活力青春风，明亮色彩", "专业学术风，稳重大气"],
+    "餐饮": ["温馨食欲风，暖色调", "时尚简约风，突出菜品"],
+    "金融": ["专业稳重风，深蓝色调", "现代商务风，简洁大气"],
+    "房产": ["现代简约风，突出房源", "高端大气风，金色/深色"],
+    "美容": ["时尚优雅风，粉紫色系", "清新自然风，浅色调"],
+    "健身": ["活力运动风，橙红色系", "现代简约风，黑白灰"],
+    "装修": ["现代简约风，突出设计案例", "高端品质风，灰色/金色"],
+    "物流": ["现代高效风，蓝绿色系", "简约商务风，橙色点缀"],
+    "电商": ["时尚简约风，突出商品", "活力创意风，多彩配色"],
+}
+
+# 行业 -> 核心优势推荐
+INDUSTRY_ADVANTAGES_HINTS = {
+    "帽子": ["原创设计、品质保证、款式多样", "快速交付、定制服务、价格实惠"],
+    "宠物": ["专业医疗团队、先进设备、贴心服务", "24小时急诊、价格透明、会员优惠"],
+    "律师": ["资深律师团队、成功案例丰富、收费透明", "专业领域深耕、高效响应、客户至上"],
+    "科技": ["技术领先、经验丰富、服务周到", "自主研发、安全可靠、性价比高"],
+    "医疗": ["专家团队、先进设备、环境舒适", "预约便捷、服务贴心、医保定点"],
+    "教育": ["师资优秀、课程体系完善、通过率高", "小班教学、个性化辅导、口碑良好"],
+    "餐饮": ["食材新鲜、口味地道、环境优雅", "价格实惠、服务周到、特色菜品"],
+    "金融": ["资质齐全、经验丰富、服务专业", "利率优惠、审批快速、隐私保护"],
+    "房产": ["房源真实、专业团队、交易安全", "服务周到、价格透明、售后保障"],
+    "美容": ["技术专业、产品优质、环境舒适", "效果显著、价格合理、会员特权"],
+    "健身": ["设备先进、教练专业、环境舒适", "课程丰富、交通便利、会员福利多"],
+    "装修": ["设计优秀、施工规范、材料环保", "价格透明、售后保障、工期准时"],
+    "物流": ["网络覆盖广、时效快、价格优", "全程追踪、保险保障、服务贴心"],
+    "电商": ["正品保证、价格优惠、物流快", "品类齐全、售后完善、会员福利"],
+}
+
+
+def infer_industry_from_name(company_name):
+    """从公司名称推断行业"""
+    if not company_name or company_name == "未填写":
+        return None
+    for keyword, industry in COMPANY_KEYWORDS_TO_INDUSTRY.items():
+        if keyword in company_name:
+            return industry
+    return None
+
+
+def get_smart_placeholder(field, collected):
+    """
+    根据已收集的信息，生成智能占位提示
+    
+    Args:
+        field: 当前问题字段名
+        collected: 已收集的信息字典
+        
+    Returns:
+        智能 placeholder 字符串
+    """
+    company_name = collected.get("company_name", "")
+    industry = collected.get("industry", "")
+    
+    # 如果没有填写行业，尝试从公司名推断
+    if not industry or industry == "未填写":
+        industry = infer_industry_from_name(company_name)
+    
+    # 根据字段类型生成智能提示
+    if field == "industry":
+        inferred = infer_industry_from_name(company_name)
+        if inferred:
+            return f"例如：{inferred}"
+        return "例如：科技、医疗、教育、餐饮、金融、法律"
+    
+    elif field == "business_scope":
+        # 查找匹配的行业提示
+        for keyword, hints in INDUSTRY_BUSINESS_SCOPE_HINTS.items():
+            if keyword in company_name or (industry and keyword in industry):
+                return f"例如：{hints[0]}"
+        # 默认提示
+        if company_name and company_name != "未填写":
+            return f"例如：{company_name}的核心业务、相关产品或服务"
+        return "例如：软件开发与定制、技术咨询服务"
+    
+    elif field == "advantages":
+        # 查找匹配的行业提示
+        for keyword, hints in INDUSTRY_ADVANTAGES_HINTS.items():
+            if keyword in company_name or (industry and keyword in industry):
+                return f"例如：{hints[0]}"
+        return "例如：技术领先、价格合理、服务周到、高性价比"
+    
+    elif field == "style":
+        # 查找匹配的行业提示
+        for keyword, hints in INDUSTRY_STYLE_HINTS.items():
+            if keyword in company_name or (industry and keyword in industry):
+                return f"例如：{hints[0]}"
+        return "例如：简约现代风、专业商务风、活力创意风、温馨亲切风"
+    
+    elif field == "other":
+        if company_name and company_name != "未填写":
+            return f"例如：{company_name}的配色方案、公司口号、企业文化等"
+        return "没有可跳过"
+    
+    # 默认返回原占位符
+    return None
+
+
+def build_smart_question(q, collected):
+    """
+    构建包含智能提示的问题输出
+    
+    Args:
+        q: 问题字典
+        collected: 已收集的信息字典
+        
+    Returns:
+        包含智能提示的问题字典
+    """
+    field = q["field"]
+    
+    # 获取智能占位符
+    smart_placeholder = get_smart_placeholder(field, collected)
+    original_placeholder = q.get("placeholder", "")
+    
+    # 优先使用智能占位符，如果没有则使用原始占位符
+    placeholder = smart_placeholder if smart_placeholder else original_placeholder
+    
+    # 构建智能问题文本
+    company_name = collected.get("company_name", "")
+    question = q["question"]
+    
+    # 为特定字段定制问题
+    if field == "business_scope" and company_name and company_name != "未填写":
+        question = f"{company_name}的业务范围是什么？提供哪些产品或服务？"
+    elif field == "advantages" and company_name and company_name != "未填写":
+        question = f"{company_name}的核心竞争优势是什么？"
+    elif field == "style" and company_name and company_name != "未填写":
+        question = f"您希望{company_name}的网站呈现什么样的视觉风格？"
+    
+    return {
+        "field": field,
+        "question": question,
+        "placeholder": placeholder,
+        "required": q.get("required", False),
+        "followups": q.get("followups", []),
+    }
+
 # API 必填字段（getCompanyInfo 要求）
 REQUIRED_API_FIELDS = ["company_name"]
 
@@ -144,7 +348,7 @@ def load_state():
 
 def save_state(state):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, ensure_ascii=False, indent=2)
+        json.dump(state, f, ensure_ascii=False, indent=2)
 
 
 def reset_state():
@@ -238,27 +442,13 @@ def sanitize_company_info(collected):
     return result
 
 
-def validate_html(html):
-    """验证 HTML 完整性，返回问题列表（空 = 通过）。"""
-    issues = []
-    if not html:
-        issues.append("HTML 内容为空")
-        return issues
-    s = html.strip()
-    if "<!DOCTYPE" not in s and "<html" not in s:
-        issues.append("缺少 DOCTYPE 或 <html> 标签")
-    if "</html>" not in s:
-        issues.append("缺少 </html> 闭合标签（内容可能不完整）")
-    if len(s) < 5000:
-        issues.append(f"内容过短（{len(s)} 字符），生成可能不完整")
-    return issues
-
-
 # ── 统一确认提示输出 ──────────────────────────────────────────────────────────
 
 def output_confirm_prompt(stage):
     """输出确认提示
     stage: "ask-init" 或 "generate"，两次提示内容完全一致
+    
+    ⚠️ 重要：此函数输出后，AI 必须停下来等待用户回复！
     """
     print(json.dumps({
         "need_confirm": True,
@@ -266,13 +456,48 @@ def output_confirm_prompt(stage):
         "message": CONFIRM_MESSAGE,
         "options": CONFIRM_OPTIONS,
         "tip": "回复「确认」继续，回复「取消」终止操作",
+        # 🔴 新增：明确告诉 AI 不要自动回复
+        "_ai_instruction": "【AI 注意】请将此确认提示展示给用户，然后停下来等待用户回复。不要自动回复「确认」或「取消」！",
     }, ensure_ascii=False))
+
+
+# ── 辅助：输出汇总 ──────────────────────────────────────────────────────────
+
+def print_summary(collected):
+    """输出需求汇总
+    
+    ⚠️ 重要：此函数输出后，AI 必须停下来等待用户确认！
+    """
+    info = sanitize_company_info(collected)
+    lines = ["=" * 50, "📋 网站需求汇总", "=" * 50, ""]
+    for q in QUESTIONS:
+        f = q["field"]
+        v = info.get(f, "未填写")
+        tag = " ⭐必填" if f in REQUIRED_API_FIELDS else ""
+        lines.append(f"  {FIELD_LABELS.get(f, f)}：{v}{tag}")
+    for f in ["email", "address"]:
+        if f in collected and collected.get(f) and collected[f] != "未填写":
+            lines.append(f"  {FIELD_LABELS.get(f, f)}：{collected[f]}")
+    lines += ["", "=" * 50]
+    print("\n".join(lines))
+
+    answered = len([v for v in info.values() if v != "未填写"])
+    skipped = len([v for v in info.values() if v == "未填写"])
+    print(json.dumps({
+        "answered_count": answered,
+        "skipped_count": skipped,
+        "collected": info,
+        "_ai_instruction": "【AI 注意】请将此汇总展示给用户，然后停下来等待用户确认是否生成。不要自动执行 generate 命令！",
+    }, ensure_ascii=False, indent=2))
 
 
 # ── 辅助：下一题或结束 ────────────────────────────────────────────────────────
 
 def advance(state):
-    """推进到下一个问题或结束"""
+    """推进到下一个问题或结束
+    
+    ⚠️ 重要：此函数输出问题后，AI 必须停下来等待用户回复！
+    """
     if state.get("pending_followups"):
         sub = state["pending_followups"][0]
         prompt = build_followup_question(None, sub)
@@ -283,23 +508,37 @@ def advance(state):
             "question": prompt["question"],
             "placeholder": prompt.get("placeholder", ""),
             "hint": "可回复「跳过」跳过此项",
+            # 🔴 新增：明确告诉 AI 不要自动回答
+            "_ai_instruction": "【AI 注意】请将此问题展示给用户，然后停下来等待用户回复。不要自动生成答案！",
         }, ensure_ascii=False))
         return
     
     if state.get("current_index", 0) >= len(QUESTIONS) or state.get("finished_early"):
         print_summary(state.get("collected", {}))
-        print("\n如需生成网站，请输入：python generate_website.py generate")
+        print(json.dumps({
+            "action": "show_summary",
+            "message": "所有问题已收集完毕，请确认以上信息是否正确。",
+            "next_step": "如需生成网站，请回复「确认生成」；如需修改，请告诉我具体修改内容。",
+            "_ai_instruction": "【AI 注意】请将汇总信息展示给用户，然后停下来等待用户确认。不要自动执行 generate 命令！",
+        }, ensure_ascii=False))
     else:
         q = QUESTIONS[state["current_index"]]
+        collected = state.get("collected", {})
+        
+        # 使用智能提示生成问题
+        smart_q = build_smart_question(q, collected)
+        
         print(json.dumps({
             "index": state["current_index"],
             "total": len(QUESTIONS),
             "field": q["field"],
             "label": FIELD_LABELS.get(q["field"], q["field"]),
-            "question": q["question"],
-            "placeholder": q.get("placeholder", ""),
+            "question": smart_q["question"],
+            "placeholder": smart_q["placeholder"],
             "required": q.get("required", False),
             "hint": "可回复「跳过」跳过此题，回复「完成」提前结束所有问答",
+            # 🔴 新增：明确告诉 AI 不要自动回答
+            "_ai_instruction": "【AI 注意】请将此问题展示给用户，然后停下来等待用户回复。不要自动生成答案！",
         }, ensure_ascii=False))
 
 
@@ -309,12 +548,14 @@ def do_initialize(state, label):
     """执行初始化并继续"""
     print(f"{label}，正在初始化站点数据...")
     result = initialize_site()
-    if result.get("code") == 0:
+    if result.get("code") == 0 and result.get("data", {}).get("initializeSuccess") is True:
         print("初始化完成！")
         state["initialized"] = True
     else:
-        print(f"[警告] 初始化返回: {result.get('msg', '')}，继续流程。")
-        state["initialized"] = True
+        msg = result.get("msg") or str(result)
+        print("[错误] 初始化失败：" + msg)
+        print("请检查后端是否正常运行，或稍后重试。如需帮助，请联系技术支持。")
+        sys.exit(1)
     save_state(state)
 
 
@@ -341,12 +582,33 @@ def do_generate(state):
         return
     
     requirement = f"请根据以下信息生成网站：\n{company_info}"
-    print("企业信息获取成功，正在生成网站（预计 1-3 分钟）...\n")
+    print("企业信息获取成功，正在生成网站（预计 5-10 分钟，请耐心等待）...\n")
     
     result = call_generate_website(requirement)
     
     if result.get("code") == 0:
+        # ⚠️ SSE 流返回 ok 不代表网站真正生成成功，需通过 readIndexHtml 验证
+        print("\n正在验证网站是否生成成功...")
+        verify_result = call_read_index_html()
+        if verify_result.get("status") is True:
+            print("✅ 验证通过：首页 HTML 内容已存在，网站生成成功！")
+        else:
+            print("⚠️ 验证未通过：首页 HTML 内容不存在，网站可能未正确生成。")
+            print("💡 建议：请尝试重新执行 generate 命令，或检查后端服务是否正常。")
+            state["generate_result"] = "verify_failed"
+            state["generate_error"] = verify_result.get("message", "首页HTML内容不存在")
+            save_state(state)
+            return
+
         print("\n网站已成功生成到站点！")
+        # 生成成功后自动获取临时分享链接
+        share_result = call_generate_share_url()
+        if share_result and share_result.get("code") == 0 and share_result.get("data"):
+            share_url = share_result.get("data", {}).get("share_url", "")
+            if share_url:
+                print("\n✅ 临时分享链接（有效期 2 小时）：")
+                print(f"   {share_url}")
+                print("")
         # 🔒 不自动发布，输出结构化确认请求让 AI 询问用户
         print(json.dumps({
             "need_publish_confirm": True,
@@ -360,12 +622,34 @@ def do_generate(state):
         state["generate_result"] = "success"
         save_state(state)
     else:
-        print(f"\n生成失败: {result.get('msg', '未知错误')}")
-        print("💡 可重新执行 generate 命令重试")
-        # 保留状态文件以便重试
-        state["generate_result"] = "failed"
-        state["generate_error"] = result.get("msg", "未知错误")
-        save_state(state)
+        err_msg = result.get("msg", "未知错误")
+        # 判断是否为「参数缺失」错误（A iEditor 初始化不完整）
+        if "参数缺失" in err_msg or "无法创建页面" in err_msg:
+            print(f"\n生成失败：「{err_msg}」")
+            # ⚠️ 不清空数据，保留已收集的问题答案
+            # 仅回退到 generate 阶段（初始化确认 + 生成），不回到 ask-init 阶段
+            state["generate_confirmed"] = "pending"
+            save_state(state)
+            print(json.dumps({
+                "need_reinit": True,
+                "stage": "generate",
+                "reason": f"generateWebsite 返回「{err_msg}」，网站未正确初始化。",
+                "message": (
+                    "网站生成失败，需要重新进行初始化。\n"
+                    "已收集的问题答案已保留，将返回到【生成网站前】的确认步骤重新进行。\n"
+                    "请回复「确认」重新初始化站点并生成网站。\n"
+                    "回复「取消」终止操作（可执行 reset 重新收集信息）。"
+                ),
+                "options": ["确认", "取消"],
+                "tip": "回复「确认」继续，回复「取消」终止（数据已保留，可随时重新 generate）",
+            }, ensure_ascii=False))
+        else:
+            print(f"\n生成失败: {err_msg}")
+            print("💡 可重新执行 generate 命令重试")
+            # 保留状态文件以便重试
+            state["generate_result"] = "failed"
+            state["generate_error"] = err_msg
+            save_state(state)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -426,6 +710,50 @@ def call_get_company_info(collected):
         return {"code": 1, "msg": str(e)}
 
 
+def call_generate_share_url():
+    """获取临时分享链接"""
+    headers = {"Authorization": API_KEY, "Content-Type": "application/json",
+               "User-Agent": "nicebox-openclaw-skill/1.0"}
+    try:
+        req = urllib.request.Request(ENDPOINT_GENERATE_SHARE_URL,
+                                     headers=headers, method="GET")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read().decode("utf-8"))
+        except Exception:
+            return {"code": 1, "msg": f"HTTP {e.code}"}
+    except Exception as e:
+        return {"code": 1, "msg": str(e)}
+
+
+def call_read_index_html():
+    """
+    通过 /site_pages/readIndexHtml 验证网站是否真正生成成功。
+    返回 {"status": True/False, "message": "..."}
+    """
+    headers = {"Authorization": API_KEY, "Content-Type": "application/json",
+               "User-Agent": "nicebox-openclaw-skill/1.0"}
+    try:
+        req = urllib.request.Request(ENDPOINT_READ_INDEX_HTML,
+                                     headers=headers, method="GET")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            if result.get("code") == 0 and result.get("data", {}).get("status") is True:
+                return {"status": True, "message": result.get("msg", "首页HTML内容存在")}
+            else:
+                return {"status": False, "message": result.get("msg", "首页HTML内容不存在")}
+    except urllib.error.HTTPError as e:
+        try:
+            err_body = json.loads(e.read().decode("utf-8"))
+            return {"status": False, "message": err_body.get("msg", f"HTTP {e.code}")}
+        except Exception:
+            return {"status": False, "message": f"HTTP {e.code}"}
+    except Exception as e:
+        return {"status": False, "message": str(e)}
+
+
 def call_generate_website(requirement):
     """
     SSE 流式生成网站。
@@ -450,9 +778,6 @@ def call_generate_website(requirement):
             data=json.dumps({"requirement": requirement}, ensure_ascii=False).encode("utf-8"),
             headers=headers, method="POST")
 
-        orig_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(300)
-
         html_content = ""
         buffer = ""
         section_index = 0
@@ -464,8 +789,7 @@ def call_generate_website(requirement):
 
         print("\n🎨 网站生成中（SSE 流式）...")
 
-        try:
-            with urllib.request.urlopen(req, timeout=300) as resp:
+        with urllib.request.urlopen(req) as resp:
                 while True:
                     chunk = resp.read(4096)
                     if not chunk:
@@ -490,7 +814,7 @@ def call_generate_website(requirement):
                             continue
 
                         etype = event.get("type", "")
-                        emsg = event.get("message", "")
+                        emsg = event.get("content") or event.get("message", "")
 
                         if etype == "progress":
                             pct = event.get("percentage")
@@ -542,22 +866,22 @@ def call_generate_website(requirement):
                         elif etype == "error":
                             print(f"\n❌ SSE 错误: {emsg}")
 
-        finally:
-            socket.setdefaulttimeout(orig_timeout)
-
-    except socket.timeout:
-        print("\n\n⏰ SSE 生成超时（3 分钟），正在保存当前内容...")
-        if html_content:
-            with open(output_file, "w", encoding="utf-8") as f:
-                f.write(html_content)
-            return {"code": 0, "html_file": output_file,
-                    "html_len": len(html_content), "timed_out": True,
-                    "issues": ["SSE 超时，内容可能不完整"]}
-        return {"code": 1, "msg": "SSE 超时，未收到任何内容"}
-
     except urllib.error.HTTPError as e:
         try:
-            return json.loads(e.read().decode("utf-8"))
+            raw = e.read().decode("utf-8", errors="replace")
+            # SSE 格式：取第一个完整的 JSON 行
+            for line in raw.split("\n"):
+                line = line.strip()
+                if line.startswith("data:"):
+                    try:
+                        ev = json.loads(line[5:].strip())
+                        if ev.get("type") == "error":
+                            return {"code": e.code, "msg": ev.get("content", "") or ev.get("message", "")}
+                    except json.JSONDecodeError:
+                        pass
+            # 尝试整体 JSON
+            data = json.loads(raw)
+            return {"code": data.get("code", e.code), "msg": data.get("message") or data.get("msg", f"HTTP {e.code}")}
         except Exception:
             return {"code": e.code, "msg": f"HTTP {e.code}"}
     except Exception as e:
@@ -575,20 +899,14 @@ def call_generate_website(requirement):
             if "<!DOCTYPE" in buffer or "<html" in buffer:
                 html_content += buffer
 
-    # 保存并验证
+    # 保存 HTML 内容
     if html_content:
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)
         print(f"\n💾 HTML 已保存: {output_file}（{len(html_content)} 字符）")
-        issues = validate_html(html_content)
-        if issues:
-            print("\n⚠️ HTML 验证发现问题:")
-            for iss in issues:
-                print(f"  - {iss}")
-        else:
-            print("✅ HTML 验证通过")
+        # 移除网站内容验证，直接认为生成成功
         return {"code": 0, "html_file": output_file,
-                "html_len": len(html_content), "issues": issues, "timed_out": False}
+                "html_len": len(html_content), "timed_out": False}
 
     return {"code": 1, "msg": "未收到 HTML 内容"}
 
@@ -681,10 +999,14 @@ def mode_questions():
 
 
 def mode_next():
-    """打印下一个要问的问题（含追问）。"""
+    """打印下一个要问的问题（含追问）。
+    
+    ⚠️ 重要：此函数输出问题后，AI 必须停下来等待用户回复！
+    """
     state = load_state()
     pending = state.get("pending_followups", [])
     current = state.get("current_index", 0)
+    collected = state.get("collected", {})
 
     if pending:
         sub = pending[0]
@@ -697,25 +1019,35 @@ def mode_next():
             "question": prompt["question"],
             "placeholder": prompt.get("placeholder", ""),
             "tip": "回复「跳过」跳过此项",
+            "_ai_instruction": "【AI 注意】请将此问题展示给用户，然后停下来等待用户回复。不要自动生成答案！",
         }, ensure_ascii=False, indent=2))
         return
 
     if current >= len(QUESTIONS):
-        print(json.dumps({"done": True, "message": "所有问题已收集完毕，请生成网站"}))
+        print(json.dumps({
+            "done": True, 
+            "message": "所有问题已收集完毕，请确认汇总后生成网站",
+            "_ai_instruction": "【AI 注意】请将此信息展示给用户，然后停下来等待用户确认。不要自动执行 generate 命令！",
+        }, ensure_ascii=False, indent=2))
         return
 
     q = QUESTIONS[current]
+    
+    # 使用智能提示生成问题
+    smart_q = build_smart_question(q, collected)
+    
     print(json.dumps({
         "done": False,
         "type": "main",
         "index": current,
         "field": q["field"],
         "label": FIELD_LABELS.get(q["field"], q["field"]),
-        "question": q["question"],
-        "placeholder": q.get("placeholder", ""),
+        "question": smart_q["question"],
+        "placeholder": smart_q["placeholder"],
         "required": q.get("required", False),
         "followups": q.get("followups", []),
         "tip": "回复「跳过」跳过此题（记为未填写），回复「完成」提前结束",
+        "_ai_instruction": "【AI 注意】请将此问题展示给用户，然后停下来等待用户回复。不要自动生成答案！",
     }, ensure_ascii=False, indent=2))
 
 
@@ -933,70 +1265,45 @@ def mode_summary():
         "answered_count": answered,
         "skipped_count": skipped,
         "collected": info,
+        "_ai_instruction": "【AI 注意】请将此汇总展示给用户，然后停下来等待用户确认是否生成。不要自动执行 generate 命令！",
     }, ensure_ascii=False, indent=2))
 
+    # 标记等待确认状态
+    state["summary_confirmed"] = "pending"
+    save_state(state)
+    # 然后输出确认选项
+    print(json.dumps({
+        "need_summary_confirm": True,
+        "stage": "summary",
+        "message": "以上是您填写的信息汇总，请确认是否需要补充？",
+        "options": ["补充信息", "确认无误，生成网站"],
+        "tip": "回复「补充信息」继续填写或修改，回复「确认无误，生成网站」直接进入生成流程",
+        "_ai_instruction": "【AI 注意】请将此确认选项展示给用户，然后停下来等待用户回复。不要自动回复！",
+    }, ensure_ascii=False))
 
-def mode_generate(args):
-    """
-    生成网站主流程：
-      1. 检查是否有语言数据 → 需要用户确认
-      2. 用户回复「确认」→ 初始化 → 生成
-      3. 用户回复「取消」→ 退出
-      4. 其他回复 → 重新询问
-    """
+
+def mode_supplement():
+    """补充信息命令 - 用户选择补充信息，回到问题继续收集"""
     state = load_state()
-    init_confirmed = state.get("init_confirmed")
-    languages = check_site_languages()
-
-    # ── 尚未确认初始化 ──
-    if init_confirmed is None:
-        if languages:
-            print(json.dumps({
-                "action": "confirm_init",
-                "message": (
-                    "⚠️ 检测到站点已有语言配置，继续生成将清空所有页面、产品、文章和留言。\n\n"
-                    "请回复「确认」继续初始化并生成网站\n"
-                    "请回复「取消」取消操作"
-                ),
-                "options": ["确认", "取消"],
-            }, ensure_ascii=False, indent=2))
-        else:
-            # 无数据，自动初始化
-            state["init_confirmed"] = True
-            state["initialized"] = True
-            save_state(state)
-            result = initialize_site()
-            if result.get("code") == 0:
-                print(json.dumps({"action": "auto_init_ok", "message": "✅ 站点为空，已自动初始化"}))
-            else:
-                print(json.dumps({"action": "auto_init_warn",
-                                  "message": f"⚠️ 自动初始化失败: {result.get('msg', '')}，继续尝试生成..."}))
-            _do_generate(state)
-        return
-
-    # ── 用户已回复「取消」─
-    if init_confirmed is False:
+    is_done = state.get("current_index", 0) >= len(QUESTIONS) or state.get("finished_early")
+    if is_done:
+        # 已完成所有问题，回到第一题重新填写
+        state["current_index"] = 0
+        state["finished_early"] = False
+    save_state(state)
+    print("好的，请继续补充信息：")
+    if state.get("current_index", 0) < len(QUESTIONS):
+        q = QUESTIONS[state.get("current_index", 0)]
         print(json.dumps({
-            "action": "cancelled",
-            "message": "已取消操作，不生成网站。如需重新生成，请先重置状态。",
+            "index": state.get("current_index", 0),
+            "total": len(QUESTIONS),
+            "field": q["field"],
+            "label": FIELD_LABELS.get(q["field"], q["field"]),
+            "question": q["question"],
+            "placeholder": q.get("placeholder", ""),
+            "required": q.get("required", False),
+            "hint": "可回复「跳过」跳过此题，回复「完成」提前结束所有问答",
         }, ensure_ascii=False))
-        return
-
-    # ── 用户已回复「确认」─
-    if init_confirmed is True and not state.get("initialized"):
-        result = initialize_site()
-        if result.get("code") == 0:
-            state["initialized"] = True
-            save_state(state)
-            print(json.dumps({"action": "init_ok", "message": "✅ 确认初始化完成，正在生成网站..."}))
-            _do_generate(state)
-        else:
-            print(json.dumps({"action": "init_failed",
-                              "message": f"❌ 初始化失败: {result.get('msg', '')}，无法生成网站"}))
-        return
-
-    # ── 已初始化，继续生成 ──
-    _do_generate(state)
 
 
 def mode_init_confirm(args):
@@ -1012,7 +1319,7 @@ def mode_init_confirm(args):
             state["initialized"] = True
             save_state(state)
             print(json.dumps({"action": "init_ok", "message": "✅ 确认初始化完成，正在生成网站..."}))
-            _do_generate(state)
+            do_generate(state)
         else:
             print(json.dumps({"action": "init_failed",
                               "message": f"❌ 初始化失败: {result.get('msg', '')}，无法生成网站"}))
@@ -1036,56 +1343,6 @@ def mode_init_confirm(args):
         ),
         "options": ["确认", "取消"],
     }, ensure_ascii=False))
-
-
-def _do_generate(state):
-    """执行实际生成流程。"""
-    collected = state.get("collected", {})
-    info = sanitize_company_info(collected)
-
-    for f in REQUIRED_API_FIELDS:
-        if info.get(f) == "未填写":
-            print(f"⚠️ 提示：{FIELD_LABELS.get(f, f)} 为「未填写」，可能影响生成效果")
-
-    print("📡 正在获取企业信息...")
-    info_result = call_get_company_info(collected)
-    if info_result.get("code") != 0:
-        print(f"❌ 获取企业信息失败: {info_result.get('msg', '')}")
-        sys.exit(1)
-
-    company_info = info_result.get("data", "")
-    if not company_info:
-        print("❌ 企业信息为空，无法生成网站")
-        sys.exit(1)
-
-    requirement = f"请根据以下信息生成网站：\n{company_info}"
-    print("🚀 正在生成网站（预计 1-3 分钟）...")
-
-    result = call_generate_website(requirement)
-
-    if result.get("code") == 0:
-        html_len = result.get("html_len", 0)
-        html_file = result.get("html_file", "")
-        issues = result.get("issues", [])
-        timed_out = result.get("timed_out", False)
-
-        if timed_out:
-            print(f"\n⚠️ 生成超时，内容可能不完整")
-        else:
-            print(f"\n✅ 网站生成成功！")
-        print(f"💾 文件已保存: {html_file}（{html_len} 字符）")
-        if issues:
-            for iss in issues:
-                print(f"  ⚠️ {iss}")
-        print(json.dumps({
-            "ok": True, "html_file": html_file, "html_len": html_len,
-            "timed_out": timed_out, "issues": issues,
-        }, ensure_ascii=False, indent=2))
-    else:
-        print(f"\n❌ 生成失败: {result.get('msg', 'Unknown error')}")
-        sys.exit(1)
-
-    reset_state()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1154,7 +1411,48 @@ def mode_confirm(args):
     """统一确认命令，两个阶段共用"""
     raw = args.answer.strip()
     state = load_state()
-    
+
+    # ── summary 阶段的确认 ──────────────────────────────────────────────────
+    if state.get("summary_confirmed") == "pending":
+        if raw == "补充信息":
+            # 用户选择补充信息，回到问题继续收集
+            state["summary_confirmed"] = None
+            is_done = state.get("current_index", 0) >= len(QUESTIONS) or state.get("finished_early")
+            if is_done:
+                # 已完成所有问题，回到第一题重新填写
+                state["current_index"] = 0
+                state["finished_early"] = False
+            save_state(state)
+            print("好的，请继续补充信息：")
+            if state.get("current_index", 0) < len(QUESTIONS):
+                q = QUESTIONS[state.get("current_index", 0)]
+                print(json.dumps({
+                    "index": state.get("current_index", 0),
+                    "total": len(QUESTIONS),
+                    "field": q["field"],
+                    "label": FIELD_LABELS.get(q["field"], q["field"]),
+                    "question": q["question"],
+                    "placeholder": q.get("placeholder", ""),
+                    "required": q.get("required", False),
+                    "hint": "可回复「跳过」跳过此题，回复「完成」提前结束所有问答",
+                }, ensure_ascii=False))
+        elif raw in ("确认无误，生成网站", "确认生成", "生成"):
+            # 用户确认无误，进入生成流程
+            state["summary_confirmed"] = True
+            save_state(state)
+            print("\n信息已确认，正在进入生成流程...")
+            print("请输入：python generate_website.py generate")
+        else:
+            # 重新显示 summary 确认选项
+            print(json.dumps({
+                "need_summary_confirm": True,
+                "stage": "summary",
+                "message": "请选择：补充信息 or 生成网站？",
+                "options": ["补充信息", "确认无误，生成网站"],
+                "tip": "回复「补充信息」继续填写，回复「确认无误，生成网站」进入生成",
+            }, ensure_ascii=False))
+        return
+
     # 第1次确认待回复（ask-init 阶段）
     if state.get("init_confirmed") == "pending":
         if raw == "确认":
@@ -1185,7 +1483,7 @@ def mode_confirm(args):
         else:
             output_confirm_prompt("ask-init")
         return
-    
+
     # 第2次确认待回复（generate 阶段）
     if state.get("generate_confirmed") == "pending":
         if raw == "确认":
@@ -1202,7 +1500,7 @@ def mode_confirm(args):
         else:
             output_confirm_prompt("generate")
         return
-    
+
     # 没有待确认的
     print("当前没有待确认的操作。")
 
@@ -1210,7 +1508,20 @@ def mode_confirm(args):
 def mode_generate(args):
     """第2次确认，生成网站前"""
     state = load_state()
-    
+
+    # 检查是否已完成信息汇总确认
+    if not state.get("summary_confirmed") and state.get("current_index", 0) >= len(QUESTIONS):
+        # 用户还没做 summary 确认，引导先做 summary
+        mode_summary()
+        print(json.dumps({
+            "need_summary_confirm": True,
+            "stage": "summary",
+            "message": "请先确认信息汇总后再生成网站。是否需要补充信息？",
+            "options": ["补充信息", "确认无误，生成网站"],
+            "tip": "回复「补充信息」继续填写，回复「确认无误，生成网站」进入生成"
+        }, ensure_ascii=False))
+        return
+
     # 任一阶段已取消
     if state.get("init_confirmed") is False or state.get("generate_confirmed") is False:
         print("操作已取消，无法生成网站。如需重新开始，请先 reset。")
@@ -1258,8 +1569,10 @@ def main():
 推荐工作流程：
   1. ask-init          ← 【必须第一步】检查站点数据（第1次确认）
   2. answer "内容"     ← 逐题收集信息（可随时「跳过」或「完成」）
-  3. summary           ← 查看汇总确认
-  4. generate          ← 生成网站（第2次确认）
+  3. summary           ← 查看信息汇总，确认是否需要补充
+  4. confirm "补充信息"        ← 如需补充，继续填写
+  5. confirm "确认无误，生成网站" ← 确认后进入生成流程
+  6. generate          ← 生成网站（第2次确认，如需重新确认）
 
 双重确认说明：
   ask-init 和 generate 都会检查站点数据
@@ -1293,6 +1606,7 @@ def main():
     
     sub.add_parser("ask-init", help="【第1步】检查站点（第1次确认）")
     sub.add_parser("summary", help="显示汇总")
+    sub.add_parser("supplement", help="补充信息")
     sub.add_parser("generate", help="【第4步】生成网站（第2次确认）")
     sub.add_parser("reset", help="重置状态")
 
@@ -1316,6 +1630,8 @@ def main():
         mode_ask_init()
     elif args.cmd == "summary":
         mode_summary()
+    elif args.cmd == "supplement":
+        mode_supplement()
     elif args.cmd == "generate":
         mode_generate(args)
     elif args.cmd == "reset":

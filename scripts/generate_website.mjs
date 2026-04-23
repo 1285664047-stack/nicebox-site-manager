@@ -154,6 +154,174 @@ function getIndustryExample(industryText) {
   return INDUSTRY_EXAMPLES.default;
 }
 
+// ── 行业推断和智能提示映射表 ─────────────────────────────────────────────────
+
+const COMPANY_KEYWORDS_TO_INDUSTRY = {
+  "帽": "帽子设计",
+  "宠物": "宠物服务",
+  "律师": "法律服务",
+  "科技": "科技",
+  "网络": "科技",
+  "软件": "科技",
+  "医疗": "医疗健康",
+  "医院": "医疗健康",
+  "诊所": "医疗健康",
+  "教育": "教育",
+  "培训": "教育",
+  "学校": "教育",
+  "餐饮": "餐饮",
+  "餐厅": "餐饮",
+  "酒店": "餐饮",
+  "金融": "金融服务",
+  "投资": "金融服务",
+  "房产": "房产",
+  "地产": "房产",
+  "美容": "美容美发",
+  "美发": "美容美发",
+  "健身": "健身运动",
+  "装修": "装修设计",
+  "装饰": "装修设计",
+  "物流": "物流运输",
+  "电商": "电子商务",
+};
+
+const INDUSTRY_BUSINESS_SCOPE_HINTS = {
+  "帽子": ["帽子设计、帽子定制、帽饰批发", "帽业生产、帽饰零售、品牌帽子"],
+  "宠物": ["宠物医疗、宠物美容、宠物寄养", "宠物诊疗、宠物疫苗、宠物用品销售"],
+  "律师": ["民事诉讼、刑事辩护、企业法务", "合同纠纷、知识产权、法律咨询"],
+  "科技": ["软件开发、系统集成、技术支持", "智能硬件、数据分析、云服务"],
+  "医疗": ["诊疗服务、健康管理、康复护理", "医疗器械、药品销售、健康体检"],
+  "教育": ["课程培训、在线教育、教育咨询", "职业技能、语言培训、K12辅导"],
+  "餐饮": ["餐饮服务、外卖配送、食材供应", "连锁经营、品牌加盟、宴会承办"],
+  "金融": ["贷款服务、投资理财、保险代理", "财富管理、风险评估、金融咨询"],
+  "房产": ["房产中介、房屋租赁、物业管理", "新房销售、二手房交易、装修服务"],
+  "美容": ["美容护肤、美发造型、美甲美睫", "SPA护理、皮肤管理、形象设计"],
+  "健身": ["健身培训、私教课程、运动康复", "健身器材、营养指导、体测服务"],
+  "装修": ["室内设计、装修施工、软装搭配", "家装服务、工装设计、建材销售"],
+  "物流": ["货物运输、仓储服务、配送服务", "供应链管理、国际物流、冷链运输"],
+  "电商": ["网上零售、电商运营、品牌代理", "跨境贸易、直播带货、供应链服务"],
+};
+
+const INDUSTRY_ADVANTAGES_HINTS = {
+  "帽子": ["原创设计、品质保证、款式多样", "快速交付、定制服务、价格实惠"],
+  "宠物": ["专业医疗团队、先进设备、贴心服务", "24小时急诊、价格透明、会员优惠"],
+  "律师": ["资深律师团队、成功案例丰富、收费透明", "专业领域深耕、高效响应、客户至上"],
+  "科技": ["技术领先、经验丰富、服务周到", "自主研发、安全可靠、性价比高"],
+  "医疗": ["专家团队、先进设备、环境舒适", "预约便捷、服务贴心、医保定点"],
+  "教育": ["师资优秀、课程体系完善、通过率高", "小班教学、个性化辅导、口碑良好"],
+  "餐饮": ["食材新鲜、口味地道、环境优雅", "价格实惠、服务周到、特色菜品"],
+  "金融": ["资质齐全、经验丰富、服务专业", "利率优惠、审批快速、隐私保护"],
+  "房产": ["房源真实、专业团队、交易安全", "服务周到、价格透明、售后保障"],
+  "美容": ["技术专业、产品优质、环境舒适", "效果显著、价格合理、会员特权"],
+  "健身": ["设备先进、教练专业、环境舒适", "课程丰富、交通便利、会员福利多"],
+  "装修": ["设计优秀、施工规范、材料环保", "价格透明、售后保障、工期准时"],
+  "物流": ["网络覆盖广、时效快、价格优", "全程追踪、保险保障、服务贴心"],
+  "电商": ["正品保证、价格优惠、物流快", "品类齐全、售后完善、会员福利"],
+};
+
+const INDUSTRY_STYLE_HINTS = {
+  "帽子": ["时尚简约风，突出帽饰设计感", "活力创意风，展现品牌个性"],
+  "宠物": ["温馨亲切风，传递关爱感", "清新可爱风，吸引宠物主人"],
+  "律师": ["专业严谨风，蓝色或深灰色调", "稳重商务风，体现专业可信"],
+  "科技": ["现代科技风，蓝色/深色系", "简约未来风，渐变色彩"],
+  "医疗": ["清新专业风，蓝绿色调", "温馨治愈风，浅色系"],
+  "教育": ["活力青春风，明亮色彩", "专业学术风，稳重大气"],
+  "餐饮": ["温馨食欲风，暖色调", "时尚简约风，突出菜品"],
+  "金融": ["专业稳重风，深蓝色调", "现代商务风，简洁大气"],
+  "房产": ["现代简约风，突出房源", "高端大气风，金色/深色"],
+  "美容": ["时尚优雅风，粉紫色系", "清新自然风，浅色调"],
+  "健身": ["活力运动风，橙红色系", "现代简约风，黑白灰"],
+  "装修": ["现代简约风，突出设计案例", "高端品质风，灰色/金色"],
+  "物流": ["现代高效风，蓝绿色系", "简约商务风，橙色点缀"],
+  "电商": ["时尚简约风，突出商品", "活力创意风，多彩配色"],
+};
+
+function inferIndustryFromName(companyName) {
+  if (!companyName || companyName === "未填写") return null;
+  for (const [keyword, industry] of Object.entries(COMPANY_KEYWORDS_TO_INDUSTRY)) {
+    if (companyName.includes(keyword)) return industry;
+  }
+  return null;
+}
+
+function getSmartPlaceholder(field, collected) {
+  const companyName = collected.company_name || "";
+  let industry = collected.industry || "";
+
+  if (!industry || industry === "未填写") {
+    industry = inferIndustryFromName(companyName);
+  }
+
+  if (field === "industry") {
+    const inferred = inferIndustryFromName(companyName);
+    if (inferred) return `例如：${inferred}`;
+    return "例如：科技、医疗、教育、餐饮、金融、法律";
+  }
+
+  if (field === "business_scope") {
+    for (const [keyword, hints] of Object.entries(INDUSTRY_BUSINESS_SCOPE_HINTS)) {
+      if (companyName.includes(keyword) || (industry && industry.includes(keyword))) {
+        return `例如：${hints[0]}`;
+      }
+    }
+    if (companyName && companyName !== "未填写") {
+      return `例如：${companyName}的核心业务、相关产品或服务`;
+    }
+    return "例如：软件开发与定制、技术咨询服务";
+  }
+
+  if (field === "advantages") {
+    for (const [keyword, hints] of Object.entries(INDUSTRY_ADVANTAGES_HINTS)) {
+      if (companyName.includes(keyword) || (industry && industry.includes(keyword))) {
+        return `例如：${hints[0]}`;
+      }
+    }
+    return "例如：技术领先、价格合理、服务周到、高性价比";
+  }
+
+  if (field === "style") {
+    for (const [keyword, hints] of Object.entries(INDUSTRY_STYLE_HINTS)) {
+      if (companyName.includes(keyword) || (industry && industry.includes(keyword))) {
+        return `例如：${hints[0]}`;
+      }
+    }
+    return "例如：简约现代风、专业商务风、活力创意风、温馨亲切风";
+  }
+
+  if (field === "other") {
+    if (companyName && companyName !== "未填写") {
+      return `例如：${companyName}的配色方案、公司口号、企业文化等`;
+    }
+    return "没有可跳过";
+  }
+
+  return null;
+}
+
+function buildSmartQuestion(q, collected) {
+  const field = q.field;
+  const smartPlaceholder = getSmartPlaceholder(field, collected);
+  const placeholder = smartPlaceholder || q.placeholder || "";
+  const companyName = collected.company_name || "";
+  let question = q.question;
+
+  if (field === "business_scope" && companyName && companyName !== "未填写") {
+    question = `${companyName}的业务范围是什么？提供哪些产品或服务？`;
+  } else if (field === "advantages" && companyName && companyName !== "未填写") {
+    question = `${companyName}的核心竞争优势是什么？`;
+  } else if (field === "style" && companyName && companyName !== "未填写") {
+    question = `您希望${companyName}的网站呈现什么样的视觉风格？`;
+  }
+
+  return {
+    field: field,
+    question: question,
+    placeholder: placeholder,
+    required: q.required || false,
+    followups: q.followups || [],
+  };
+}
+
 const QUESTIONS = [
   { field: "company_name",   question: "请问您的公司名称或想创建的网站名称是什么？",
     placeholder: "例如：鲜然食品加工厂、明德律师事务所、果园飘香水果农场",
@@ -255,11 +423,11 @@ function sanitize(collected) {
 function printSummary(collected) {
   const info = sanitize(collected);
   console.log("\n" + "=".repeat(52));
-  console.log("网站需求汇总");
+  console.log("📋 网站需求汇总");
   console.log("=".repeat(52));
   for (const q of QUESTIONS) {
     const v = info[q.field] || "未填写";
-    const tag = REQUIRED_API_FIELDS.includes(q.field) ? " [必填]" : "";
+    const tag = REQUIRED_API_FIELDS.includes(q.field) ? " ⭐必填" : "";
     console.log("  " + (FIELD_LABELS[q.field] || q.field) + tag + "：" + v);
   }
   for (const f of ["email", "address"]) {
@@ -268,18 +436,30 @@ function printSummary(collected) {
     }
   }
   console.log("=".repeat(52));
+  // 🔴 新增：输出结构化汇总 + AI 指令
+  const answered = Object.values(info).filter(v => v !== "未填写").length;
+  const skipped = Object.values(info).filter(v => v === "未填写").length;
+  console.log(JSON.stringify({
+    answered_count: answered,
+    skipped_count: skipped,
+    collected: info,
+    _ai_instruction: "【AI 注意】请将此汇总展示给用户，然后停下来等待用户确认是否生成。不要自动执行 generate 命令！",
+  }, null, 2));
 }
 
 // ── 统一确认提示输出 ──────────────────────────────────────────────────────────
 
 function outputConfirmPrompt(stage) {
   // stage: "ask-init" 或 "generate"，两次提示内容完全一致
+  // ⚠️ 重要：此函数输出后，AI 必须停下来等待用户回复！
   console.log(JSON.stringify({
     need_confirm: true,
     stage,
     message: CONFIRM_MESSAGE,
     options: CONFIRM_OPTIONS,
     tip: "回复「确认」继续，回复「取消」终止操作",
+    // 🔴 新增：明确告诉 AI 不要自动回复
+    _ai_instruction: "【AI 注意】请将此确认提示展示给用户，然后停下来等待用户回复。不要自动回复「确认」或「取消」！",
   }));
 }
 
@@ -388,11 +568,7 @@ async function generateWebsiteStream(requirement) {
     });
 
     req.on("error", err => resolve({ ok: false, error: err.message }));
-    // 移除超时设置，让连接保持开放直到完成
-    // req.setTimeout(300000, () => {
-    //   req.destroy();
-    //   resolve({ ok: false, error: "SSE 超时（5 分钟），未收到完成信号" });
-    // });
+
 
     req.write(body);
     req.end();
@@ -402,16 +578,31 @@ async function generateWebsiteStream(requirement) {
 // ── 辅助：下一题或结束 ────────────────────────────────────────────────────────
 
 async function advance(state) {
+  // ⚠️ 重要：此函数输出问题后，AI 必须停下来等待用户回复！
   if (state.pending_followups.length) {
     const sub = state.pending_followups[0];
-    console.log(JSON.stringify(formatFollowup(sub, FIELD_LABELS[sub] || sub)));
+    const output = formatFollowup(sub, FIELD_LABELS[sub] || sub);
+    output._ai_instruction = "【AI 注意】请将此问题展示给用户，然后停下来等待用户回复。不要自动生成答案！";
+    console.log(JSON.stringify(output));
     return;
   }
   if (state.current_index >= QUESTIONS.length || state.finished_early) {
     printSummary(state.collected);
-    console.log("\n如需生成网站，请输入：node generate_website.mjs generate");
+    console.log(JSON.stringify({
+      action: "show_summary",
+      message: "所有问题已收集完毕，请确认以上信息是否正确。",
+      next_step: "如需生成网站，请回复「确认生成」；如需修改，请告诉我具体修改内容。",
+      _ai_instruction: "【AI 注意】请将汇总信息展示给用户，然后停下来等待用户确认。不要自动执行 generate 命令！",
+    }));
   } else {
-    console.log(JSON.stringify(formatQuestion(QUESTIONS[state.current_index], state.current_index, QUESTIONS.length)));
+    const smartQ = buildSmartQuestion(QUESTIONS[state.current_index], state.collected);
+    const output = {
+      ...formatQuestion(QUESTIONS[state.current_index], state.current_index, QUESTIONS.length),
+      question: smartQ.question,
+      placeholder: smartQ.placeholder,
+    };
+    output._ai_instruction = "【AI 注意】请将此问题展示给用户，然后停下来等待用户回复。不要自动生成答案！";
+    console.log(JSON.stringify(output));
   }
 }
 
@@ -478,6 +669,38 @@ async function getShareUrl() {
   });
 }
 
+// 通过 /site_pages/readIndexHtml 验证网站是否真正生成成功
+async function readIndexHtml() {
+  const url = BASE_URL + '/site_pages/readIndexHtml';
+  const isHttps = url.startsWith('https');
+  const mod = isHttps ? https : http;
+  return new Promise((resolve) => {
+    const u = new URL(url);
+    const req = mod.request({
+      hostname: u.hostname, path: u.pathname,
+      method: 'GET',
+      headers: { 'Authorization': API_KEY, 'Content-Type': 'application/json' }
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(d);
+          if (result.code === 0 && result.data?.status === true) {
+            resolve({ status: true, message: result.msg || '首页HTML内容存在' });
+          } else {
+            resolve({ status: false, message: result.msg || '首页HTML内容不存在' });
+          }
+        } catch {
+          resolve({ status: false, message: '解析响应失败' });
+        }
+      });
+    });
+    req.on('error', e => resolve({ status: false, message: e.message }));
+    req.end();
+  });
+}
+
 async function doGenerate(state) {
   for (const f of REQUIRED_API_FIELDS) {
     if (!state.collected[f] || state.collected[f] === "未填写") {
@@ -489,10 +712,23 @@ async function doGenerate(state) {
   if (infoData.code !== 0) { console.log("获取企业信息失败: " + infoData.msg); return; }
   const companyInfo = infoData.data || "";
   if (!companyInfo) { console.log("企业信息为空，无法生成"); return; }
-  console.log("企业信息获取成功，正在生成网站（预计 1-3 分钟）...\n");
+  console.log("企业信息获取成功，正在生成网站（预计 5-10 分钟，请耐心等待）...\n");
   const result = await generateWebsiteStream("请根据以下信息生成网站：\n" + companyInfo);
   if (result.ok) {
-    // 移除网站内容验证，直接认为生成成功
+    // ⚠️ SSE 流返回 ok 不代表网站真正生成成功，需通过 readIndexHtml 验证
+    console.log("\n正在验证网站是否生成成功...");
+    const verifyResult = await readIndexHtml();
+    if (verifyResult.status === true) {
+      console.log("✅ 验证通过：首页 HTML 内容已存在，网站生成成功！");
+    } else {
+      console.log("⚠️ 验证未通过：首页 HTML 内容不存在，网站可能未正确生成。");
+      console.log("💡 建议：请尝试重新执行 generate 命令，或检查后端服务是否正常。");
+      state.generate_result = "verify_failed";
+      state.generate_error = verifyResult.message || "首页HTML内容不存在";
+      saveState(state);
+      return;
+    }
+
     console.log("\n网站已成功生成到站点！");
     // 生成成功后自动获取临时分享链接
     const shareResult = await getShareUrl();

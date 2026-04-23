@@ -4,6 +4,8 @@
 用法：
   python set-key.py <新密钥>        设置并持久化
   python set-key.py                查看当前密钥
+
+修复：同时写入 Process + User 级别，确保子进程继承正确值
 """
 import os
 import subprocess
@@ -21,14 +23,18 @@ def main():
         print('用法：python set-key.py <新密钥>')
         return
 
-    # 写入当前进程（本次会话立即生效）
+    # 1. 写入当前进程（本次会话立即生效）
     os.environ['AIBOX_API_KEY'] = new_key
 
-    # 持久化到用户级环境变量（重启后依然有效）
-    cmd = '[Environment]::SetEnvironmentVariable(\'AIBOX_API_KEY\', \'{0}\', \'User\')'.format(new_key)
-    subprocess.check_output(['powershell', '-Command', cmd])
+    # 2. 持久化到 User 级别（重启后依然有效）
+    cmd_user = "[Environment]::SetEnvironmentVariable('AIBOX_API_KEY', '{0}', 'User')".format(new_key)
+    subprocess.check_output(['powershell', '-Command', cmd_user])
 
-    print('✅ 已更新为：{0}****（已持久化到系统环境变量）'.format(new_key[:8]))
+    # 3. 写入 Process 级别（覆盖 QClaw 传入的过期值，确保子进程读到正确值）
+    cmd_process = "[Environment]::SetEnvironmentVariable('AIBOX_API_KEY', '{0}', 'Process')".format(new_key)
+    subprocess.check_output(['powershell', '-Command', cmd_process])
+
+    print('✅ 已更新：{0}****（已写入 Process+User 级别）'.format(new_key[:8]))
 
 if __name__ == '__main__':
     main()

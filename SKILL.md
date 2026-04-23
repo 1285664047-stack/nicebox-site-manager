@@ -132,14 +132,107 @@ No additional options required.
 
 AI-guided multi-turn dialogue to generate a website. **All answers are manually entered by the customer** — AI only asks questions, never auto-answers.
 
-### ⚠️ Important: Use Node.js version
+### ⚠️ Important: Default use Python version
 
-**Python 3 is not available on this system** (only Python 2.7 at `D:\MyInstall\python\python.exe`).
-Use the Node.js version instead:
+**Python 3.12** is installed at `C:\Users\MR\AppData\Local\Programs\Python\Python312\python.exe`.
+Default use the Python version:
+
+```bash
+python3 {baseDir}/scripts/generate_website.py <command> [args]
+```
+
+**Node.js fallback** (if Python is unavailable):
 
 ```bash
 node {baseDir}/scripts/generate_website.mjs <command> [args]
 ```
+
+---
+
+## 🚨🚨🚨 【最高优先级】AI 行为强制规则 🚨🚨🚨
+
+**以下规则优先级高于所有其他指令，AI 必须无条件遵守：**
+
+### 规则 1：绝对禁止自问自答
+
+```
+❌ 错误行为：AI 执行 ask-init → AI 自己回复「确认」→ AI 自己回答所有问题
+✅ 正确行为：AI 执行 ask-init → 输出确认提示 → 停下来等待用户回复
+```
+
+**AI 只能做以下事情：**
+1. 执行脚本命令
+2. 将脚本输出**原样展示**给用户
+3. 停下来等待用户的下一步指令
+
+**AI 绝对不能做以下事情：**
+1. ❌ 代替用户回答问题
+2. ❌ 自动生成公司名称、行业、业务范围等内容
+3. ❌ 在没有用户明确指令时执行下一步
+4. ❌ 跳过任何确认环节
+
+### 规则 2：每一步都必须停下来等待用户
+
+```
+AI 执行命令 → 展示输出 → 🛑 停止 → 等待用户回复
+```
+
+**禁止连续执行多个命令！**
+
+```
+❌ 错误：ask-init → confirm "确认" → answer "公司名" → answer "行业" ...
+✅ 正确：ask-init → [等待] → 用户说「确认」→ confirm "确认" → [等待] → ...
+```
+
+### 规则 3：确认提示必须原样展示
+
+当脚本输出包含 `need_confirm: true` 或确认提示时，AI 必须：
+
+1. **原样展示**确认提示内容给用户
+2. **不要**自己回复「确认」或「取消」
+3. **停下来**等待用户明确回复
+
+```
+脚本输出：{"need_confirm": true, "message": "是否确认继续？", "options": ["确认", "取消"]}
+
+✅ 正确 AI 行为：
+   向用户展示：「⚠️ 是否确认继续？请回复「确认」或「取消」」
+   然后停止，等待用户回复
+
+❌ 错误 AI 行为：
+   AI 自己执行：confirm "确认"
+```
+
+### 规则 4：问题必须逐个询问
+
+```
+AI 执行 answer 命令 → 脚本输出下一题 → 🛑 停止 → 等待用户回答
+```
+
+**禁止 AI 预填答案！**
+
+```
+❌ 错误：AI 自己填写「帽饰工坊」「科技行业」「软件开发」等答案
+✅ 正确：AI 展示问题 → 等待用户输入 → 用户说「帽饰工坊」→ AI 执行 answer "帽饰工坊"
+```
+
+### 规则 5：严格要求内容都通过中文输出
+
+**AI 必须使用中文进行所有交互和输出：**
+
+1. ✅ 所有提示、说明、问题都必须使用中文
+2. ✅ 脚本输出的内容必须以中文形式展示给用户
+3. ✅ 错误信息、警告信息必须使用中文
+4. ✅ 确认提示、操作指引必须使用中文
+5. ❌ 禁止使用英文或其他语言进行交互
+
+**示例：**
+- ✅ 正确：「请问您的公司名称是什么？」
+- ❌ 错误：「What's your company name?」
+- ✅ 正确：「⚠️ 发布网站将覆盖线上版本，此操作无法撤销还原！」
+- ❌ 错误：「⚠️ Publishing will overwrite online version, this operation cannot be undone!」
+
+---
 
 ### ⚠️ 【强制】AI 操作流程（必须严格按此顺序执行）
 
@@ -151,6 +244,177 @@ node {baseDir}/scripts/generate_website.mjs <command> [args]
 第 3 步：summary        ← 显示汇总确认
 第 4 步：generate       ← 生成网站（第2次确认）
 ```
+
+**每一步执行后，必须停下来等待用户响应！**
+
+---
+
+## ✅ AI 执行前检查清单
+
+**在执行任何 generate_website 相关命令前，AI 必须自问：**
+
+| 检查项 | 问题 | 如果答案是「否」→ 停止 |
+|--------|------|------------------------|
+| 1 | 用户是否明确说了要执行这个命令？ | 停下来询问用户 |
+| 2 | 这是否是用户要求的下一步？ | 停下来等待用户指令 |
+| 3 | 我是否在代替用户回答问题？ | 立即停止，等待用户输入 |
+| 4 | 脚本是否输出了确认提示？ | 展示给用户，等待回复 |
+
+---
+
+## 🔴 常见错误模式（必须避免）
+
+### 错误模式 1：自动填写答案
+
+```
+❌ 错误：
+用户：帮我生成一个宠物店网站
+AI: 好的，公司名称是「宠物店」，行业是「宠物服务」...
+    [执行] answer "宠物店"
+    [执行] answer "宠物服务"
+
+✅ 正确：
+用户：帮我生成一个宠物店网站
+AI: 好的，请问您的公司名称是什么？
+    [等待用户回答]
+用户：萌宠乐园
+AI: [执行] answer "萌宠乐园"
+    [展示下一题]
+    [等待用户回答]
+```
+
+### 错误模式 2：自动确认
+
+```
+❌ 错误：
+AI: [执行] ask-init
+AI: [输出确认提示]
+AI: [执行] confirm "确认"  ← 没等用户回复就自己确认了
+
+✅ 正确：
+AI: [执行] ask-init
+AI: [输出确认提示]
+AI: 请问您确认要初始化站点吗？
+    [停止，等待用户回复]
+用户：确认
+AI: [执行] confirm "确认"
+```
+
+### 错误模式 3：跳过问题
+
+```
+❌ 错误：
+AI: [执行] answer "公司名"
+AI: [执行] answer "跳过"  ← AI 自己跳过
+AI: [执行] answer "跳过"  ← AI 自己跳过
+
+✅ 正确：
+AI: [执行] answer "公司名"
+AI: [展示下一题]
+    [停止，等待用户回复]
+用户：跳过
+AI: [执行] answer "跳过"
+```
+
+---
+
+---
+
+## 📋 正确交互流程示例
+
+### 示例 1：第1步 ask-init（有数据需要确认）
+
+```
+用户：帮我生成一个网站
+
+✅ 正确 AI 行为：
+AI: 好的，我来帮您生成网站。首先执行初始化检查...
+[执行] python3 generate_website.py ask-init
+[输出] {"need_confirm": true, "message": "检测到站点已有数据..."}
+
+AI: ⚠️ 检测到站点已有数据，生成网站将初始化站点，清空已有的所有网站信息。
+   请回复「确认」继续，或回复「取消」终止操作。
+   [停止，等待用户回复]
+
+❌ 错误 AI 行为：
+AI: 好的，我来帮您生成网站...
+[执行] ask-init
+[执行] confirm "确认"  ← 错误！AI 不应该自己确认
+[执行] answer "某某公司"  ← 错误！AI 不应该自己回答
+```
+
+### 示例 2：第2步 问题收集
+
+```
+用户：确认
+
+✅ 正确 AI 行为：
+AI: [执行] python3 generate_website.py confirm "确认"
+[输出] 初始化完成！当前问题：Q1 公司名称...
+
+AI: 请问您的公司名称或想创建的网站名称是什么？
+   （例如：明德律师事务所、某某科技官网）
+   [停止，等待用户回复]
+
+用户：帽饰工坊
+
+AI: [执行] python3 generate_website.py answer "帽饰工坊"
+[输出] Q2 Logo 问题...
+
+AI: 请问您是否有公司logo地址？没有请直接跳过。
+   [停止，等待用户回复]
+
+❌ 错误 AI 行为：
+AI: [执行] answer "帽饰工坊"
+AI: [执行] answer "跳过"  ← 错误！AI 不应该自己跳过
+AI: [执行] answer "科技行业"  ← 错误！AI 不应该自己回答
+```
+
+### 示例 3：第3步 summary 汇总确认
+
+```
+用户：（回答完所有问题后）
+
+✅ 正确 AI 行为：
+AI: [执行] python3 generate_website.py summary
+[输出] 汇总信息...
+
+AI: 以下是您的网站需求汇总：
+   公司名称：帽饰工坊
+   行业：帽饰设计与定制服务
+   ...
+   
+   如需生成网站，请回复「确认」继续。
+   [停止，等待用户回复]
+
+❌ 错误 AI 行为：
+AI: [执行] summary
+AI: [执行] generate  ← 错误！AI 不应该自己执行下一步
+```
+
+### 示例 4：第4步 generate 生成
+
+```
+用户：确认生成
+
+✅ 正确 AI 行为：
+AI: [执行] python3 generate_website.py generate
+[输出] 网站生成中...
+
+AI: ⏳ 网站正在生成中，预计需要 5-10 分钟，请耐心等待...
+[等待生成完成，不设置超时]
+[输出] 正在验证网站是否生成成功...
+[输出] ✅ 验证通过：首页 HTML 内容已存在，网站生成成功！
+[输出] 生成成功！
+
+AI: ✅ 网站生成成功！
+   预览地址：https://...
+   
+   是否需要发布到线上？请回复「确认发布」或「暂不发布」。
+   [停止，等待用户回复]
+```
+
+---
 
 **双重确认机制（两次提示内容完全一致）：**
 
@@ -166,24 +430,43 @@ node {baseDir}/scripts/generate_website.mjs <command> [args]
 - 用户回复「取消」→ 执行 `confirm "取消"` → 终止所有操作
 
 ```bash
-node {baseDir}/scripts/generate_website.mjs ask-init          # 【第1步】检查站点（第1次确认）
-node {baseDir}/scripts/generate_website.mjs confirm "确认"    # 确认（两个阶段通用）
-node {baseDir}/scripts/generate_website.mjs confirm "取消"    # 取消（两个阶段通用）
-node {baseDir}/scripts/generate_website.mjs status            # 查看进度
-node {baseDir}/scripts/generate_website.mjs questions         # 列出全部8问
-node {baseDir}/scripts/generate_website.mjs next              # 打印下一题
-node {baseDir}/scripts/generate_website.mjs answer "内容"     # 记录回答
-node {baseDir}/scripts/generate_website.mjs answer --input-file /path/to/input.txt  # 从文件读取回答（解决中文编码问题）
-node {baseDir}/scripts/generate_website.mjs summary           # 汇总确认
-node {baseDir}/scripts/generate_website.mjs generate          # 【第4步】生成网站（第2次确认）
-node {baseDir}/scripts/generate_website.mjs reset             # 重置对话
+python3 {baseDir}/scripts/generate_website.py ask-init          # 【第1步】检查站点（第1次确认）
+python3 {baseDir}/scripts/generate_website.py confirm "确认"    # 确认（两个阶段通用）
+python3 {baseDir}/scripts/generate_website.py confirm "取消"    # 取消（两个阶段通用）
+python3 {baseDir}/scripts/generate_website.py status            # 查看进度
+python3 {baseDir}/scripts/generate_website.py questions         # 列出全部8问
+python3 {baseDir}/scripts/generate_website.py next              # 打印下一题
+python3 {baseDir}/scripts/generate_website.py answer "内容"     # 记录回答
+python3 {baseDir}/scripts/generate_website.py summary           # 汇总确认
+python3 {baseDir}/scripts/generate_website.py generate          # 【第4步】生成网站（第2次确认）
+python3 {baseDir}/scripts/generate_website.py reset             # 重置对话
 ```
 
-### ⚠️ 中文编码问题解决方案
+**Node.js 备用**（Python 不可用时）：
 
-**问题背景**：Windows PowerShell 默认使用 GBK 编码，而 Node.js 期望 UTF-8。直接通过命令行参数传递中文可能导致乱码。
+```bash
+node {baseDir}/scripts/generate_website.mjs ask-init
+node {baseDir}/scripts/generate_website.mjs answer "内容"
+node {baseDir}/scripts/generate_website.mjs answer --input-file /path/to/input.txt  # Node.js 中文编码 workaround
+node {baseDir}/scripts/generate_website.mjs summary
+node {baseDir}/scripts/generate_website.mjs generate
+# ...其余命令同上，将 python3 ... .py 替换为 node ... .mjs
+```
 
-**解决方案**：使用 `--input-file` 选项从文件读取输入：
+### ⚠️ 生成网站耗时提示（重要）
+
+**生成网站通常需要 5-10 分钟**，AI 在执行 `generate` 命令时：
+1. **不要设置 exec 超时**，或设置超时 ≥ 600 秒
+2. **提示用户需要长时间等待**：
+   > ⏳ 网站正在生成中，预计需要 5-10 分钟，请耐心等待...
+3. 如果 AI 会话有默认超时机制，需要提前告知用户生成过程不会中断
+
+### ⚠️ 中文编码说明
+
+**Python 版本**：原生支持 UTF-8，可直接在命令行传递中文参数，无需额外处理。
+
+**Node.js 备用版本**：Windows PowerShell 默认使用 GBK 编码，直接通过命令行参数传递中文可能导致乱码。
+需使用 `--input-file` 选项从文件读取输入：
 
 ```bash
 # 1. 先将中文内容写入临时文件（UTF-8 编码）
@@ -310,13 +593,13 @@ Publish your website to FTP server with pre-checks.
 ```
 任何场景触发发布
     ↓
-AI 调用 ftp_manager.mjs publish（不带 --confirmed）
+AI 调用 ftp_manager.py publish（不带 --confirmed）
     ↓
 脚本返回确认请求 JSON
     ↓
 AI 向用户展示确认提示：「⚠️ 发布网站将覆盖线上版本，此操作无法撤销还原！是否确认发布？」
     ↓
-┌── 用户回复「确认发布」→ AI 调用 ftp_manager.mjs publish --confirmed → 执行发布
+┌── 用户回复「确认发布」→ AI 调用 ftp_manager.py publish --confirmed → 执行发布
 │
 └── 用户回复「取消」/「暂不发布」→ 终止发布操作
 ```
@@ -345,12 +628,12 @@ AI 向用户展示确认提示：「⚠️ 发布网站将覆盖线上版本，�
 
 After successful generation, you'll be prompted to publish using:
 ```bash
-node {baseDir}/scripts/ftp_manager.mjs publish
+python3 {baseDir}/scripts/ftp_manager.py publish
 ```
 
 **如果 FTP 配置缺失或需要修改：** 请前往「网站站点后台 → FTP配置」页面进行填写或修改，本工具不支持在线修改 FTP 配置。
 
-### Python version:
+### Python version (默认):
 ```bash
 # Python 版本同样需要两步确认
 python3 {baseDir}/scripts/ftp_manager.py publish
@@ -358,7 +641,7 @@ python3 {baseDir}/scripts/ftp_manager.py publish --confirmed
 python3 {baseDir}/scripts/ftp_manager.py publish --confirmed --batch-size 50 --overwrite-mode force
 ```
 
-### Node.js version:
+### Node.js version (备用):
 ```bash
 # 第一步：请求确认（不带 --confirmed）
 node {baseDir}/scripts/ftp_manager.mjs publish
@@ -386,12 +669,12 @@ node {baseDir}/scripts/ftp_manager.mjs publish --confirmed
 
 ```bash
 # 查看当前秘钥
-node {baseDir}/scripts/set-key.mjs
-python {baseDir}/scripts/set-key.py
+python3 {baseDir}/scripts/set-key.py
+node {baseDir}/scripts/set-key.mjs  # 备用
 
 # 修改秘钥（写入操作系统环境变量，立即生效+持久化）
-node {baseDir}/scripts/set-key.mjs "your_new_api_key"
-python {baseDir}/scripts/set-key.py "your_new_api_key"
+python3 {baseDir}/scripts/set-key.py "your_new_api_key"
+node {baseDir}/scripts/set-key.mjs "your_new_api_key"  # 备用
 ```
 
 此方式会：
@@ -517,6 +800,7 @@ This skill assumes the following API paths (relative to the Base URL `https://ai
 * `POST /product/publish`
 * `GET /product/getCategories`
 * `GET /site_pages/getLanguageList`
+* `GET /site_pages/readIndexHtml`
 * `POST /template/initializeData`
 * `POST /ai_tools/getCompanyInfo`
 * `POST /ai_tools/generateWebsite`
@@ -588,15 +872,19 @@ FTP 相关接口路径是 `site_publish`，不是 `ftp`。完整路径：
 
 **永远不要凭记忆猜测 API 路径。**
 
-### Python scripts not working on Windows
+### Python / Node.js 选择
 
-**Use Node.js instead of Python.** Python 3 is not available on this system. The `generate_website.mjs` script provides equivalent functionality:
+**默认使用 Python 3**（已安装在 `C:\Users\MR\AppData\Local\Programs\Python\Python312\python.exe`）：
+
+```bash
+python3 {baseDir}/scripts/generate_website.py <command>
+```
+
+**Node.js 备用**（仅在 Python 不可用时）：
 
 ```bash
 node {baseDir}/scripts/generate_website.mjs <command>
 ```
-
-If you need to run Python scripts for other commands (publish, list, etc.), ensure Python 3 is installed first.
 
 ### 📌 FTP 接口路径易错点（经验教训）
 
@@ -640,6 +928,7 @@ If you need to run Python scripts for other commands (publish, list, etc.), ensu
 - 生成前需确保站点已初始化（通过 `template/initializeData`）
 - 生成成功后，状态文件会保留（不再立即删除），方便重试
 - 生成成功后会输出结构化确认请求（`need_publish_confirm: true`），AI 必须询问用户是否发布，不得自动发布
+- **生成验证**：SSE 流返回 `ok: true` 并不代表网站真正生成成功，脚本会自动调用 `/site_pages/readIndexHtml` 验证首页 HTML 是否存在。验证失败时会提示用户重试，不会进入发布流程
 
 ## Upload material
 
@@ -671,14 +960,14 @@ Upload images to your site's cloud resource library, automatically detecting the
 2. **后续操作使用**：在后续的网站生成或内容发布中，如需使用该图片，应使用记录的路径
 3. **重复文件处理**：如果上传相同文件，API 会返回已有文件的 ID（`isOld: true`），应正常处理
 
-### Python version:
+### Python version (默认):
 ```bash
 python3 {baseDir}/scripts/upload_material.py upload path/to/image.jpg
 python3 {baseDir}/scripts/upload_material.py upload path/to/logo.png --source guide_logo
 python3 {baseDir}/scripts/upload_material.py upload path/to/product.jpg --source openclaw_products
 ```
 
-### Node.js version:
+### Node.js version (备用):
 ```bash
 node {baseDir}/scripts/upload_material.mjs upload path/to/image.jpg
 node {baseDir}/scripts/upload_material.mjs upload path/to/logo.png --source guide_logo
@@ -759,12 +1048,12 @@ Generate a temporary share URL for your site.
     └── ❌ total = 0 → 终止操作 → 提示用户
 ```
 
-### Python version:
+### Python version (默认):
 ```bash
 python3 {baseDir}/scripts/generate_share_url.py
 ```
 
-### Node.js version:
+### Node.js version (备用):
 ```bash
 node {baseDir}/scripts/generate_share_url.mjs
 ```

@@ -19,6 +19,7 @@ import json
 import requests
 import os
 import sys
+import time
 
 # API端点
 ENDPOINT_GET_CONFIG = '/api/openclaw/site_publish/getConfig'
@@ -31,17 +32,22 @@ ENDPOINT_PREPARE_PUBLISH = '/api/openclaw/site_publish/preparePublish'
 
 def load_config():
     """加载配置"""
-    # 从环境变量构造
     base_url = os.environ.get("AIBOX_BASE_URL", "https://ai.nicebox.cn/api/openclaw")
     api_key = os.environ.get("AIBOX_API_KEY", "")
-    
+    site_id = os.environ.get("AIBOX_SITE_ID", "")
+
     if not api_key:
         print("错误：缺少 API 配置，请设置 AIBOX_API_KEY 环境变量")
         sys.exit(1)
-    
+
+    if not site_id:
+        print("错误：缺少 SITE 配置，请设置 AIBOX_SITE_ID 环境变量")
+        sys.exit(1)
+
     return {
         "api_url": base_url,
-        "api_key": api_key
+        "api_key": api_key,
+        "site_id": site_id
     }
 
 
@@ -236,9 +242,107 @@ def prepare_publish(options):
         return None
 
 
+def fetch_with_retry(url, method, headers, json_data=None, max_retries=3, delay_ms=3000):
+    """带重试的 HTTP 请求"""
+    for attempt in range(1, max_retries + 1):
+        try:
+            if method == "POST":
+                response = requests.post(url, headers=headers, json=json_data, timeout=300)
+            else:
+                response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+
+            if result.get("code") == 0:
+                return result
+            # 业务错误不重试
+            if result.get("code") in (400, 401, 403):
+                return result
+            # 500 类错误可重试
+            if attempt < max_retries:
+                print(f"  第 {attempt} 次尝试失败: {result.get('message', '')}，{delay_ms/1000} 秒后重试...")
+                time.sleep(delay_ms / 1000)
+                continue
+            return result
+        except requests.RequestException as e:
+            if attempt < max_retries:
+                print(f"  第 {attempt} 次请求异常: {e}，{delay_ms/1000} 秒后重试...")
+                time.sleep(delay_ms / 1000)
+                continue
+            raise
+
+
+def proceed_with_publish(args):
+    """继续发布流程（多批次处理）"""
+    step_num = [1]
+    def next_step(label):
+        print(f"\n步骤{step_num[0]}：{label}")
+        step_num[0] += 1
+
+    # 准备发布
+    next_step("准备发布")
+    prepare_options = {
+        'batch_size': args.batch_size,
+        'overwrite_mode': args.overwrite_mode,
+        'generate_mode': args.generate_mode,
+        'batch_number': 1
+    }
+
+    prepare_result = prepare_publish(prepare_options)
+    if not prepare_result:
+        print("错误：准备发布失败")
+        return False
+
+    # 处理多批次
+    total_batches = prepare_result.get('total_batches', 1)
+    current_batch = 1
+
+    while current_batch <= total_batches:
+        next_step(f"开始发布网站（批次 {current_batch}/{total_batches}）")
+        config = load_config()
+        url = get_api_url(config, ENDPOINT_PUBLISH)
+        headers = get_headers(config)
+
+        publish_options = {
+            'batch_size': args.batch_size,
+            'overwrite_mode': args.overwrite_mode,
+            'generate_mode': args.generate_mode,
+            'batch_number': current_batch
+        }
+
+        data = {
+            'options': publish_options,
+            'disable_streaming': True
+        }
+
+        result = fetch_with_retry(url, "POST", headers, data)
+
+        if result.get('code') == 0:
+            next_step("发布完成")
+            print("网站发布成功！")
+            print(f"发布结果: {result.get('message', '发布完成')}")
+            if result.get('data'):
+                stats = result['data'].get('stats', {})
+                if stats.get('files_uploaded'):
+                    print(f"  上传文件: {stats['files_uploaded']} 个")
+                if stats.get('files_failed'):
+                    print(f"  失败文件: {stats['files_failed']} 个")
+                if stats.get('duration'):
+                    print(f"  耗时: {stats['duration']} 秒")
+            if prepare_result.get('has_more') and current_batch < total_batches:
+                current_batch += 1
+                continue
+            return True
+        else:
+            print(f"错误: {result.get('message', '发布失败')}")
+            return False
+
+    return True
+
+
 def publish_website(args):
     """发布网站
-    
+
     安全机制：必须传入 confirmed=True 才会执行发布，否则返回确认提示
     这确保 AI 在发布前一定会询问用户确认
     """
@@ -252,9 +356,9 @@ def publish_website(args):
             "tip": "回复「确认发布」继续发布，回复「取消」终止操作"
         }, ensure_ascii=False))
         return False
-    
+
     print("正在发布网站...\n")
-    step_num = [1]  # 用列表实现闭包可变
+    step_num = [1]
     def next_step(label):
         print(f"\n步骤{step_num[0]}：{label}")
         step_num[0] += 1
@@ -262,12 +366,12 @@ def publish_website(args):
     # 检查FTP配置
     next_step("检查FTP配置")
     ftp_config = get_ftp_config()
-    
+
     if not ftp_config:
         print("错误：无法获取FTP配置")
         return False
-    
-    # 检查FTP关键字段是否完整（host/username/password/port 四个均需填写）
+
+    # 检查FTP关键字段是否完整
     required_fields = ['ftp_host', 'ftp_username', 'ftp_password', 'ftp_port']
     missing_fields = [f for f in required_fields if not ftp_config.get(f)]
 
@@ -275,17 +379,17 @@ def publish_website(args):
         print(f'\n⚠️ FTP配置不完整，缺少：{", ".join(missing_fields)}')
         print('请前往「网站站点后台 → FTP配置」页面填写完整后再执行发布。')
         return False
-    
+
     # 测试FTP连接（改为警告而非硬阻断）
     next_step("测试FTP连接")
     ftp_ok = test_ftp_connection()
     if not ftp_ok:
         print("\n⚠️ FTP连接测试失败，但仍尝试发布（服务端可能可连接）")
-    
+
     # 检测发布任务状态
     next_step("检测发布任务状态")
     task_status = get_task_status()
-    
+
     # 检查是否正在发布
     if task_status and task_status.get('status') == 'running':
         print("\n检测到有正在进行的发布任务！")
@@ -295,124 +399,55 @@ def publish_website(args):
             if not cancel_task():
                 print("错误：无法终止之前的发布任务")
                 return False
+            # 继续发布流程
+            return proceed_with_publish(args)
         else:
             print("取消发布操作")
             return False
-    
-    # 准备发布
-    next_step("准备发布")
-    prepare_options = {
-        'batch_size': args.batch_size,
-        'overwrite_mode': args.overwrite_mode,
-        'generate_mode': args.generate_mode,
-        'batch_number': 1  # batch_number 必须放在 options 内部
-    }
-    
-    prepare_result = prepare_publish(prepare_options)
-    if not prepare_result:
-        print("错误：准备发布失败")
-        return False
-    
-    # 处理多批次
-    total_batches = prepare_result.get('total_batches', 1) if prepare_result else 1
-    current_batch = 1
-    
-    while current_batch <= total_batches:
-        next_step(f"开始发布网站（批次 {current_batch}/{total_batches}）")
-        config = load_config()
-        url = get_api_url(config, ENDPOINT_PUBLISH)
-        headers = get_headers(config)
-        
-        # 构建发布选项 — batch_number 必须在 options 内部，否则 PHP 后端报 "Undefined array key batch_number"
-        publish_options = {
-            'batch_size': args.batch_size,
-            'overwrite_mode': args.overwrite_mode,
-            'generate_mode': args.generate_mode,
-            'batch_number': current_batch
-        }
-        
-        # 禁用流式输出，使用普通模式
-        data = {
-            'options': publish_options,
-            'disable_streaming': True
-        }
-        
-        # 带重试的发布（最多3次）
-        max_retries = 3
-        for attempt in range(1, max_retries + 1):
-            try:
-                response = requests.post(url, headers=headers, json=data, timeout=300)
-                response.raise_for_status()
-                result = response.json()
-                
-                if result.get('code') == 0:
-                    next_step("发布完成")
-                    print("网站发布成功！")
-                    print(f"发布结果: {result.get('message', '发布完成')}")
-                    if result.get('data'):
-                        stats = result['data'].get('stats', {})
-                        if stats.get('files_uploaded'):
-                            print(f"  上传文件: {stats['files_uploaded']} 个")
-                        if stats.get('files_failed'):
-                            print(f"  失败文件: {stats['files_failed']} 个")
-                        if stats.get('duration'):
-                            print(f"  耗时: {stats['duration']} 秒")
-                    if prepare_result.get('has_more') and current_batch < total_batches:
-                        current_batch += 1
-                        break  # 跳出重试循环，进入下一批次
-                    return True
-                else:
-                    # 400/401/403 业务错误不重试
-                    if result.get('code') in (400, 401, 403):
-                        print(f"错误: {result.get('message', '发布失败')}")
-                        return False
-                    # 500 类错误可重试
-                    if attempt < max_retries:
-                        print(f"  第 {attempt} 次尝试失败: {result.get('message', '')}，3 秒后重试...")
-                        import time; time.sleep(3)
-                        continue
-                    print(f"错误: {result.get('message', '发布失败')}")
-                    return False
-            except requests.RequestException as e:
-                if attempt < max_retries:
-                    print(f"  第 {attempt} 次请求异常: {e}，3 秒后重试...")
-                    import time; time.sleep(3)
-                    continue
-                print(f"请求失败: {e}")
-                return False
-    
-    return True
+
+    # 没有正在进行的任务，直接继续发布流程
+    return proceed_with_publish(args)
 
 
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='FTP配置管理和网站发布工具')
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
-    
+
     # 获取配置命令
     subparsers.add_parser('get-config', help='获取FTP配置')
 
     # 测试连接命令
     subparsers.add_parser('test-connection', help='测试FTP连接')
-    
+
     # 获取服务器信息命令
     subparsers.add_parser('get-server-info', help='获取FTP服务器信息')
-    
+
+    # 获取任务状态命令
+    subparsers.add_parser('get-task-status', help='获取发布任务状态')
+
+    # 取消任务命令
+    subparsers.add_parser('cancel-task', help='取消发布任务')
+
     # 发布网站命令
     publish_parser = subparsers.add_parser('publish', help='发布网站')
     publish_parser.add_argument('--batch-size', type=int, default=30, choices=[20, 30, 50], help='批次大小')
     publish_parser.add_argument('--overwrite-mode', type=str, default='smart', choices=['smart', 'force'], help='覆盖模式')
     publish_parser.add_argument('--generate-mode', type=str, default='default', choices=['default', 'full_static'], help='HTML生成模式')
     publish_parser.add_argument('--confirmed', action='store_true', help='已确认发布（必须用户明确确认后才能传入）')
-    
+
     args = parser.parse_args()
-    
+
     if args.command == 'get-config':
         get_ftp_config()
     elif args.command == 'test-connection':
         test_ftp_connection()
     elif args.command == 'get-server-info':
         get_server_info()
+    elif args.command == 'get-task-status':
+        get_task_status()
+    elif args.command == 'cancel-task':
+        cancel_task()
     elif args.command == 'publish':
         publish_website(args)
     else:
