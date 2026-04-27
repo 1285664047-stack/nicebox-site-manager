@@ -53,8 +53,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Publish product to NiceBox OpenClaw API")
     parser.add_argument("--name", required=True, help="Product name")
     parser.add_argument("--price", required=True, type=float, help="Product price")
-    parser.add_argument("--content", default="", help="Product content")
-    parser.add_argument("--description", default="", help="Product description")
+    content_group = parser.add_mutually_exclusive_group()
+    content_group.add_argument("--content", default="", help="Product content (use --content-file for large/Chinese content)")
+    content_group.add_argument("--content-file", default="", help="Path to file containing product content (recommended for Chinese/HTML)")
+    desc_group = parser.add_mutually_exclusive_group()
+    desc_group.add_argument("--description", default="", help="Product description (use --desc-file for Chinese content)")
+    desc_group.add_argument("--desc-file", default="", help="Path to file containing product description (recommended for Chinese text)")
     parser.add_argument("--category-id", type=int, default=0, help="Product category ID")
     parser.add_argument("--currency", default="CNY", help="Currency code")
     parser.add_argument("--sort-order", type=int, default=0, help="Sort order")
@@ -76,11 +80,45 @@ def main():
         eprint("Error: AIBOX_API_KEY is not set")
         sys.exit(2)
 
+    # Read content from file if --content-file specified
+    content = args.content
+    if args.content_file:
+        try:
+            try:
+                with open(args.content_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except UnicodeDecodeError:
+                with open(args.content_file, "r", encoding="cp936") as f:
+                    content = f.read()
+        except FileNotFoundError:
+            eprint(f"Error: content file not found: {args.content_file}")
+            sys.exit(1)
+        except Exception as e:
+            eprint(f"Error reading content file: {e}")
+            sys.exit(1)
+
+    # Read description from file if --desc-file specified
+    description = args.description
+    if args.desc_file:
+        try:
+            try:
+                with open(args.desc_file, "r", encoding="utf-8") as f:
+                    description = f.read()
+            except UnicodeDecodeError:
+                with open(args.desc_file, "r", encoding="cp936") as f:
+                    description = f.read()
+        except FileNotFoundError:
+            eprint(f"Error: desc file not found: {args.desc_file}")
+            sys.exit(1)
+        except Exception as e:
+            eprint(f"Error reading desc file: {e}")
+            sys.exit(1)
+
     payload = {
         "name": args.name,
         "price": args.price,
-        "content": args.content,
-        "description": args.description,
+        "content": content,
+        "description": description,
         "category_id": args.category_id,
         "currency": args.currency,
         "sort_order": args.sort_order,

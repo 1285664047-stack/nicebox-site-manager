@@ -61,7 +61,7 @@ def check_site_has_content(config):
 
 def generate_share_url(config):
     """生成临时分享地址"""
-    url = f"{config['api_url']}{ENDPOINT_SHARE_URL}"
+    url = f"{config['api_url']}{ENDPOINT_SHARE_URL}?type=nicebox"
     headers = {
         "Authorization": config['api_key'],
         "Content-Type": "application/json"

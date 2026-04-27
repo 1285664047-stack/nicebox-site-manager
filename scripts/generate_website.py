@@ -757,7 +757,7 @@ def call_read_index_html():
 def call_generate_website(requirement):
     """
     SSE 流式生成网站。
-    返回：{"code": 0, "html_file": ..., "html_len": N, "issues": [...], "timed_out": bool}
+    返回：{"code": 0, "html_len": N, "issues": [...], "timed_out": bool}
           或 {"code": 非0, "msg": "..."}
     """
     headers = {
@@ -766,11 +766,6 @@ def call_generate_website(requirement):
         "Accept": "text/event-stream",
         "User-Agent": "nicebox-openclaw-skill/1.0",
     }
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        f"website_{timestamp}.html"
-    )
 
     # 初始化 html_content 避免 UnboundLocalError
     html_content = ""
@@ -787,7 +782,6 @@ def call_generate_website(requirement):
         section_names = ["Header", "Hero", "Services", "About", "Team",
                          "Contact", "Footer", "Products", "News", "FAQ"]
         last_display_chars = 0
-        last_save_time = time_module.time()
         last_progress = ""
 
         # 移除 emoji，使用纯文字输出避免 Windows GBK 编码问题
@@ -847,15 +841,10 @@ def call_generate_website(requirement):
                             if content:
                                 html_chunks.append(content)
                                 html_content = ''.join(html_chunks)
-                                if time_module.time() - last_save_time > 30:
-                                    try:
-                                        with open(output_file + ".draft", "w", encoding="utf-8") as f:
-                                            f.write(html_content)
-                                        sys.stdout.write(f"\r[DRAFT] {len(html_content)} chars     ")
-                                        sys.stdout.flush()
-                                        last_save_time = time_module.time()
-                                    except Exception:
-                                        pass
+                                if html_content and (len(html_content) - last_display_chars) >= 5000:
+                                    sys.stdout.write(f"\r[RECV] 已接收 {len(html_content)} 字符     ")
+                                    sys.stdout.flush()
+                                    last_display_chars = len(html_content)
 
                         elif etype == "section_complete":
                             sec = event.get("section")
@@ -905,14 +894,10 @@ def call_generate_website(requirement):
             if "<!DOCTYPE" in buffer or "<html" in buffer:
                 html_content += buffer
 
-    # 保存 HTML 内容
+    # 移除网站内容验证，直接认为生成成功
     if html_content:
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(html_content)
-        print(f'\n[DONE] HTML saved: {output_file} ({len(html_content)} chars)')
-        # 移除网站内容验证，直接认为生成成功
-        return {"code": 0, "html_file": output_file,
-                "html_len": len(html_content), "timed_out": False}
+        print(f'\n[DONE] 网站生成完成，接收 {len(html_content)} 字符')
+        return {"code": 0, "html_len": len(html_content), "timed_out": False}
 
     return {"code": 1, "msg": "No HTML content received"}
 

@@ -52,7 +52,9 @@ def http_post_json(url: str, api_key: str, payload: dict, timeout: int = 30):
 def parse_args():
     parser = argparse.ArgumentParser(description="Publish article to NiceBox OpenClaw API")
     parser.add_argument("--title", required=True, help="Article title")
-    parser.add_argument("--content", required=True, help="Article HTML/content")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--content", help="Article HTML/content (use --content-file for large content)")
+    group.add_argument("--content-file", help="Path to file containing article content (recommended for Chinese/HTML content)")
     parser.add_argument("--summary", default="", help="Article summary")
     parser.add_argument("--author", default="", help="Author name")
     parser.add_argument("--cover", default="", help="Cover image URL")
@@ -69,9 +71,27 @@ def main():
         eprint("Error: AIBOX_API_KEY is not set")
         sys.exit(2)
 
+    content = args.content
+    if args.content_file:
+        try:
+            # Read with UTF-8, fallback to system encoding
+            try:
+                with open(args.content_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except UnicodeDecodeError:
+                # Windows GBK fallback for legacy files
+                with open(args.content_file, "r", encoding="cp936") as f:
+                    content = f.read()
+        except FileNotFoundError:
+            eprint(f"Error: content file not found: {args.content_file}")
+            sys.exit(1)
+        except Exception as e:
+            eprint(f"Error reading content file: {e}")
+            sys.exit(1)
+
     payload = {
         "title": args.title,
-        "content": args.content,
+        "content": content,
         "summary": args.summary,
         "author": args.author,
         "cover": args.cover,

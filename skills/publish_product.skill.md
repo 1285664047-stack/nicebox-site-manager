@@ -25,8 +25,10 @@ python3 {baseDir}/scripts/publish_product.py \
 |---------|-------------|-----------|
 | `--name` | Product name | Yes |
 | `--price` | Product price | Yes |
-| `--content` | Product content | No |
-| `--description` | Product description | No |
+| `--content` | Product content | No (use `--content-file` for large/Chinese content) |
+| `--content-file` | Path to file containing product content | No (mutually exclusive with `--content`) |
+| `--description` | Product description | No (use `--desc-file` for Chinese content) |
+| `--desc-file` | Path to file containing product description | No (mutually exclusive with `--description`) |
 | `--category-id` | Product category ID | No |
 | `--currency` | Currency code (default: CNY) | No |
 | `--sort-order` | Sort order | No |
@@ -40,19 +42,31 @@ python3 {baseDir}/scripts/publish_product.py \
 ## Example
 
 ```bash
-# Publish a product
+# Recommended: use --content-file and --desc-file to avoid PowerShell encoding issues
 python3 {baseDir}/scripts/publish_product.py \
   --name "智能手表 Pro" \
   --price 2999 \
-  --content "<p>智能手表 Pro，支持心率监测、GPS定位等功能</p>" \
-  --description "高端智能手表，功能全面" \
+  --content-file "product_content.html" \
+  --desc-file "product_desc.txt" \
   --category-id 1 \
   --images "https://example.com/watch1.jpg" "https://example.com/watch2.jpg" \
   --status publish
 ```
 
+```bash
+# Alternative: inline content (may have encoding issues on Windows PowerShell)
+python3 {baseDir}/scripts/publish_product.py \
+  --name "Smartphone X" \
+  --price 5999.99 \
+  --content "High-quality smartphone" \
+  --description "Advanced features" \
+  --status publish
+```
+
 ## Notes
 
+- **Always use `--content-file` / `--desc-file` for Chinese content or large HTML** — avoids PowerShell command-line encoding issues
+- Content/desc files should be UTF-8 encoded
 - Price must be numeric
 - Multiple images can be provided
 - Use `--list_product_categories.py` to find category IDs
