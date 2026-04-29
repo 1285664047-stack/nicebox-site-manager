@@ -60,11 +60,8 @@ API 密钥和站点信息存储在 `scripts/config.json` 文件中：
 # 初始化配置文件
 python config_manager.py --init
 
-# 设置 API 密钥
+# 设置 API 密钥（强制通过 API 获取 base_url 和 site_from）
 python config_manager.py --key <your_api_key>
-
-# 设置 API 基础 URL（通常由 set-key.py 自动获取）
-python config_manager.py --url <base_url>
 
 # 设置站点信息
 python config_manager.py --set company_name "你的公司名称"
@@ -76,12 +73,15 @@ python config_manager.py --reset-site
 python config_manager.py
 ```
 
+> **注意**：设置 API 密钥时会**强制**调用 API 获取 `base_url` 和 `site_from`，获取失败将返回错误，不会写入不完整的配置。
+
 ### 配置项说明
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
 | `api_key` | API 密钥（必填） | 空 |
-| `base_url` | API 基础 URL（由 set-key.py 自动获取） | 空 |
+| `base_url` | API 基础 URL（**设置密钥时强制自动获取**） | 空 |
+| `site_from` | 站点来源 nicebox/oem/aidev（**设置密钥时强制自动获取**） | 空 |
 | `site_info` | 站点信息（公司名称、行业、联系方式等） | 空 |
 
 ## [WARN] 强制规则：禁止任何替代方案
