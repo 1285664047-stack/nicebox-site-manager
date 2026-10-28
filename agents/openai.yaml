@@ -1,0 +1,15 @@
+interface:
+  display_name: "Nicebox Site Manager"
+  short_description: "Manage Nicebox AI websites through MCP tools"
+  default_prompt: "Use $website-manager to manage my Nicebox AI website."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "nicebox"
+      description: "Nicebox MCP Server for website management"
+      transport: "streamable_http"
+      url: "https://aidev.nicebox.cn/mcp"
+
+policy:
+  allow_implicit_invocation: true
