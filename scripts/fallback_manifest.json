@@ -44,6 +44,7 @@
   "nicebox_start_website_generation": "_full_gen.py",
   "nicebox_get_website_generation_status": "_full_gen.py (foreground progress and final result)",
   "nicebox_prepare_publish": "ftp_manager.py prepare",
+  "nicebox_prepare_publish_all": "ftp_manager.py prepare-all",
   "nicebox_start_publish": "ftp_manager.py start",
   "nicebox_cancel_publish": "ftp_manager.py cancel-task"
 }

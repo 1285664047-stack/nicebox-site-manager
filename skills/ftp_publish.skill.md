@@ -12,9 +12,9 @@ Test FTP connection and publish your website to FTP server with pre-checks.
 
 FTP 密码由 API 服务端直接从账号级 `account_ftp_config` 表读取，只向技能返回 `password_configured` 或脱敏占位符。`password_configured=true`（或旧接口返回 `ftp_password=******`）表示密码已经保存：不得要求用户重新输入、不得把掩码当密码传回，也不得调用更新配置接口覆盖密码。此时直接调用测试连接；若仍返回“配置不完整”，应报告服务端读取异常，不向用户索取秘密。只有 `password_configured=false` 且密码确实未保存时，才引导用户到 Nicebox 后台安全配置，不能在对话中索取或展示 FTP 密码。
 
-`preparePublish` 是分批生成状态机，不是一次调用必定创建任务。返回 `has_more=true` 时没有 `task_id` 是正常的中间状态：使用 `next_batch` 继续，并原样携带 `next_batch_type`、`total_generated`、`total_estimated`、`standard_pages_num`；静态批次从 1 开始递增 `static_batch_number`。必须继续到 `task_created=true`。只有同时满足 `task_ready=true` 且存在 `task_id` 才能开始上传；`no_changes=true` 表示无需上传并直接完成。不得把中间批次误报为任务表缺字段，不得绕过 MCP 改调完整发布接口。
+`preparePublish` 是分批生成状态机，不是一次调用必定创建任务。优先调用 `nicebox_prepare_publish_all`，REST 回退优先使用 `ftp_manager.py prepare-all`，由工具严格读取服务端 `next_prepare` 自动完成基础页面、静态详情页和 llms 批次，直到 `task_created=true`。文章或产品存在且要求生成独立详情页时使用 `generate_mode=full_static`；`default` 模式不保证生成独立详情页。只有同时满足 `task_ready=true` 且存在 `task_id` 才能上传；`no_changes=true` 表示无需上传并直接完成。
 
-`batch_number` 只能作为 `nicebox_prepare_publish` 的顶层参数，禁止放入 `options`。每次响应都核对 `requested_batch_number` 和 `batch_number` 等于请求批次；如果请求第 2 批却返回第 1 批，应停止并报告版本/参数错误，不能继续覆盖第 1 批状态。
+仅在自动工具不可用或调试时使用单步 `nicebox_prepare_publish` / `prepare`。下一次请求必须原样使用响应中的 `next_prepare.batch_number` 和完整 `next_prepare.options`，禁止自行推算游标。尤其不能只递增顶层 `batch_number`：静态详情页还要求 `options.batch_type=static` 和 `options.static_batch_number`。重复游标或超过 200 步必须停止并报告，不能无限重试。
 
 发布任务保存在 `publish_tasks` 数据库表，不依赖 PHP Session、Cookie 或 MCP 会话。取得真实 `task_id` 后，上传和后续状态查询都必须显式传同一个 ID；不能按“当前任务”猜测。第一批返回 `phase=generating_files`、`task_id=null` 是正常状态，不得诊断为 Session 丢失。
 
@@ -53,7 +53,10 @@ python3 {baseDir}/scripts/ftp_manager.py get-task-status --task-id TASK_ID
 # Cancel publish task
 python3 {baseDir}/scripts/ftp_manager.py cancel-task --confirmed
 
-# Prepare files (repeat with next_batch until task_ready=true)
+# Prepare all files, including static article/product detail pages
+python3 {baseDir}/scripts/ftp_manager.py prepare-all --options-json '{"generate_mode":"full_static"}' --confirmed
+
+# Debug only: prepare one batch and continue with the returned next_prepare cursor
 python3 {baseDir}/scripts/ftp_manager.py prepare --batch-number 1 --confirmed
 
 # Upload the prepared task (repeat with next_batch while has_more=true)
@@ -78,7 +81,7 @@ python3 {baseDir}/scripts/ftp_manager.py get-config
 python3 {baseDir}/scripts/ftp_manager.py test-connection
 
 # Step 3: Prepare then upload the returned task
-python3 {baseDir}/scripts/ftp_manager.py prepare --batch-number 1 --confirmed
+python3 {baseDir}/scripts/ftp_manager.py prepare-all --options-json '{"generate_mode":"full_static"}' --confirmed
 python3 {baseDir}/scripts/ftp_manager.py start --task-id TASK_ID --batch-number 1 --confirmed
 
 # Check publish task status

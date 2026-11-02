@@ -17,6 +17,8 @@ def parse_args():
     prepare = sub.add_parser("prepare")
     prepare.add_argument("--batch-number", type=int, default=1); prepare.add_argument("--task-id", type=int)
     prepare.add_argument("--options-json", default="{}"); prepare.add_argument("--confirmed", action="store_true")
+    prepare_all = sub.add_parser("prepare-all")
+    prepare_all.add_argument("--options-json", default="{}"); prepare_all.add_argument("--confirmed", action="store_true")
     start = sub.add_parser("start")
     start.add_argument("--task-id", type=int, required=True); start.add_argument("--batch-number", type=int, default=1)
     start.add_argument("--options-json", default="{}"); start.add_argument("--confirmed", action="store_true")
@@ -32,6 +34,64 @@ def need_confirmation(action, summary):
     output({"need_confirm": True, "action": action, "summary": summary})
     return 3
 
+def prepare_all_batches(initial_options):
+    batch_number = 1
+    options = dict(initial_options)
+    history = []
+    seen = set()
+
+    for _ in range(200):
+        data = request("POST", "/site_publish/preparePublish", {
+            "batch_number": batch_number,
+            "options": options,
+            "confirmed": True,
+        }, timeout=300)
+        if not isinstance(data, dict):
+            raise OpenClawError("发布准备返回结构无效", "INVALID_RESPONSE", data)
+
+        history.append({
+            "batch_number": data.get("batch_number"),
+            "batch_type": options.get("batch_type"),
+            "static_batch_number": options.get("static_batch_number"),
+            "generated_pages": data.get("generated_pages", 0),
+            "phase": data.get("phase"),
+        })
+        if data.get("task_created") is True:
+            return {**data, "prepare_steps": len(history), "prepare_history": history}
+        if data.get("has_more") is not True:
+            raise OpenClawError(
+                "发布准备没有创建任务，也没有返回下一批次",
+                "PUBLISH_PREPARE_INCOMPLETE",
+                data,
+            )
+
+        next_prepare = data.get("next_prepare")
+        if not isinstance(next_prepare, dict):
+            raise OpenClawError("发布接口没有返回有效的 next_prepare 游标", "INVALID_PUBLISH_CURSOR", data)
+        next_batch = next_prepare.get("batch_number")
+        next_options = next_prepare.get("options")
+        if isinstance(next_batch, bool) or not isinstance(next_batch, int) or next_batch < 1 or not isinstance(next_options, dict):
+            raise OpenClawError("发布接口没有返回有效的 next_prepare 游标", "INVALID_PUBLISH_CURSOR", data)
+
+        cursor = json.dumps({
+            "batch_number": next_batch,
+            "batch_type": next_options.get("batch_type"),
+            "static_batch_number": next_options.get("static_batch_number"),
+            "total_generated": next_options.get("total_generated"),
+        }, sort_keys=True, ensure_ascii=False)
+        if cursor in seen:
+            raise OpenClawError("发布准备游标重复，已停止以避免无限循环", "PUBLISH_CURSOR_LOOP", {
+                "cursor": cursor,
+                "result": data,
+            })
+        seen.add(cursor)
+        batch_number = next_batch
+        options = dict(next_options)
+
+    raise OpenClawError("发布准备超过200步，已停止以避免无限循环", "PUBLISH_PREPARE_LIMIT", {
+        "prepare_history": history,
+    })
+
 def main():
     args = parse_args()
     try:
@@ -44,6 +104,10 @@ def main():
             payload = {"options": opts, "batch_number": args.batch_number, "confirmed": True}
             if args.task_id: payload["task_id"] = args.task_id
             data = request("POST", "/site_publish/preparePublish", payload, timeout=300)
+        elif args.action == "prepare-all":
+            opts = parse_options(args.options_json)
+            if not args.confirmed: return need_confirmation("prepare-all", {"options": opts})
+            data = prepare_all_batches(opts)
         elif args.action == "start":
             opts = parse_options(args.options_json)
             if not args.confirmed: return need_confirmation("start", {"task_id": args.task_id, "batch_number": args.batch_number, "options": opts})
