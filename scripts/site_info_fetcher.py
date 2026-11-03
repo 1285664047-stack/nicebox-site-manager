@@ -8,6 +8,8 @@ import urllib.error
 import json
 import time
 
+from agent_source import source_headers
+
 # 备用 URL 列表（按优先级）
 FALLBACK_BASE_URLS = [
     'http://aidev.nicebox.cn/api/openclaw',
@@ -40,6 +42,7 @@ def fetch_site_info(api_key, max_retries=3, timeout=15):
                     'Authorization': api_key.strip(),
                     'Accept': 'application/json',
                     'User-Agent': 'qidc-openclaw-skill/1.0',
+                    **source_headers(endpoint),
                 }
             )
             try:
@@ -90,6 +93,7 @@ def _fetch_json(base_url, endpoint, api_key, timeout):
             'Authorization': api_key.strip(),
             'Accept': 'application/json',
             'User-Agent': 'qidc-openclaw-skill/1.0',
+            **source_headers(endpoint),
         },
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:

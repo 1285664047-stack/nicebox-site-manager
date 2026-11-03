@@ -1,13 +1,14 @@
 import urllib.request, json, sys, time as time_module
 sys.stdout.reconfigure(encoding='utf-8')
 from config_reader import get_api_key, get_base_url
+from agent_source import source_headers
 
 API_KEY = get_api_key()
 BASE = get_base_url()
 
 print('Step 1: initializeData...')
 req_init = urllib.request.Request(BASE+'/template/initializeData',
-    data=b'{}', headers={'Authorization':API_KEY,'Content-Type':'application/json'}, method='POST')
+    data=b'{}', headers={'Authorization':API_KEY,'Content-Type':'application/json', **source_headers('/template/initializeData')}, method='POST')
 with urllib.request.urlopen(req_init, timeout=60) as resp:
     result = json.loads(resp.read())
 print(f'init result: code={result.get("code")}')
@@ -18,7 +19,7 @@ print('Step 2: generateWebsite (direct requirement string, no site_id)...')
 req_str = '请为青稞旅行社创建一个旅游服务网站。公司名称：青稞旅行社，行业：旅游，业务范围：组团旅游、门票购买。视觉风格：现代简约，活力创意风，青绿色调。'
 body = json.dumps({'requirement': req_str}, ensure_ascii=False).encode('utf-8')
 req = urllib.request.Request(BASE+'/ai_tools/generateWebsite', data=body,
-    headers={'Authorization':API_KEY,'Content-Type':'application/json','Accept':'text/event-stream'}, method='POST')
+    headers={'Authorization':API_KEY,'Content-Type':'application/json','Accept':'text/event-stream', **source_headers('/ai_tools/generateWebsite')}, method='POST')
 
 section_idx = 0
 section_names = ['Header','Hero','Services','About','Team','Contact','Footer','Products','News','FAQ']
@@ -72,7 +73,7 @@ except Exception as e:
 # Step 3: verify
 print('验证生成结果...')
 req3 = urllib.request.Request(BASE+'/site_pages/readIndexHtml',
-    headers={'Authorization':API_KEY,'Content-Type':'application/json'}, method='GET')
+    headers={'Authorization':API_KEY,'Content-Type':'application/json', **source_headers('/site_pages/readIndexHtml')}, method='GET')
 try:
     with urllib.request.urlopen(req3, timeout=30) as resp:
         r = json.loads(resp.read())

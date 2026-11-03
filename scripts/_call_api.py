@@ -1,6 +1,7 @@
 import urllib.request, json
 
 from config_reader import get_api_key, get_base_url
+from agent_source import source_headers
 
 BASE = get_base_url()
 API_KEY = get_api_key()
@@ -24,7 +25,8 @@ req = urllib.request.Request(
     data=body,
     headers={
         'Authorization': API_KEY,
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
+        **source_headers('/ai_tools/getCompanyInfo'),
     },
     method='POST'
 )

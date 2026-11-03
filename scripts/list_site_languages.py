@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.error
 
 from config_reader import get_api_key, get_base_url, check_config
+from agent_source import source_headers
 
 ENDPOINT_LIST_LANGUAGES = "/site_pages/getLanguageList"
 
@@ -35,6 +36,7 @@ def http_get(url: str, api_key: str, timeout: int = 30):
             "Authorization": api_key,
             "Accept": "application/json",
             "User-Agent": "qidc-openclaw-skill/1.0",
+            **source_headers(url),
         },
     )
     try:

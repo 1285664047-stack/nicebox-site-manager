@@ -18,6 +18,7 @@ except Exception:
     pass
 
 from config_reader import get_api_key, get_base_url, check_config
+from agent_source import source_headers
 
 
 def load_config():
@@ -35,7 +36,8 @@ def check_site_has_content(config):
     url = f"{config['api_url']}/site_pages/getLanguageList"
     headers = {
         "Authorization": config['api_key'],
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        **source_headers(url),
     }
     try:
         req = urllib.request.Request(url, headers=headers, method='GET')
@@ -70,7 +72,8 @@ def generate_share_url(config):
     url = f"{config['api_url']}/site/generateShareUrl"
     headers = {
         "Authorization": config['api_key'],
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        **source_headers(url),
     }
 
     try:

@@ -11,6 +11,7 @@ import sys
 import requests
 
 from config_reader import check_config, get_api_key, get_base_url
+from agent_source import source_headers
 
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
 PURPOSES = ("logo", "product_cover", "article_cover", "image")
@@ -58,7 +59,11 @@ def main():
 
         response = requests.post(
             get_base_url().rstrip("/") + "/image/upload",
-            headers={"Authorization": get_api_key(), "Accept": "application/json"},
+            headers={
+                "Authorization": get_api_key(),
+                "Accept": "application/json",
+                **source_headers("/image/upload"),
+            },
             data=None if json_payload else data,
             json=json_payload,
             files=files,

@@ -12,6 +12,7 @@ import urllib.request
 import urllib.error
 
 from config_reader import get_api_key, get_base_url
+from agent_source import source_headers
 
 
 ENDPOINT_INITIALIZE = "/template/initializeData"
@@ -36,6 +37,7 @@ def http_post_json(url: str, api_key: str, payload: dict, timeout: int = 60):
             "Content-Type": "application/json",
             "Accept": "application/json",
             "User-Agent": "qidc-openclaw-skill/1.0",
+            **source_headers(url),
         },
     )
     try:

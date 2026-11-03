@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 
 from config_reader import get_api_key, get_base_url
+from agent_source import source_headers
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -51,6 +52,7 @@ def request(method, path, payload=None, timeout=60):
         "Authorization": api_key,
         "Accept": "application/json",
         "User-Agent": "nicebox-site-manager/2.0",
+        **source_headers(path),
     }
     if method.upper() == "GET" and payload:
         url += "?" + urllib.parse.urlencode(payload)

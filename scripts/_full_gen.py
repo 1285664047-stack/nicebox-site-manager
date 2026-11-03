@@ -22,6 +22,7 @@ _full_gen.py - AiWebSite 网站生成一次性脚本
 import urllib.request, urllib.error, urllib.parse, json, sys, time, pathlib, argparse, threading
 
 from config_reader import get_api_key, get_base_url
+from agent_source import source_headers
 from openclaw_client import complete_site_requirement
 import config_manager
 
@@ -42,7 +43,8 @@ def call_api(endpoint, data=None, headers_extra=None):
     url = BASE + endpoint
     headers = {
         'Authorization': API_KEY,
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
+        **source_headers(endpoint),
     }
     if headers_extra:
         headers.update(headers_extra)
@@ -254,7 +256,8 @@ def main():
         headers={
             'Authorization': API_KEY,
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': 'text/event-stream'
+            'Accept': 'text/event-stream',
+            **source_headers('/ai_tools/generateWebsite'),
         },
         method='POST'
     )

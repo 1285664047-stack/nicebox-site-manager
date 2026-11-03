@@ -23,6 +23,7 @@ from datetime import datetime
 
 from config_reader import get_api_key, get_base_url, check_config
 from config_manager import get_site_info, set_site_info_dict, reset_site_info
+from agent_source import source_headers
 from openclaw_client import complete_site_requirement
 
 urlparse = urllib.parse.urlparse
@@ -695,7 +696,7 @@ def do_generate(state):
 
 def check_site_languages():
     headers = {"Authorization": API_KEY, "Content-Type": "application/json",
-               "User-Agent": "qidc-openclaw-skill/1.0"}
+               "User-Agent": "qidc-openclaw-skill/1.0", **source_headers(ENDPOINT_LANGUAGE_LIST)}
     try:
         req = urllib.request.Request(ENDPOINT_LANGUAGE_LIST, data=b"{}",
                                       headers=headers, method="GET")
@@ -710,7 +711,7 @@ def check_site_languages():
 
 def initialize_site():
     headers = {"Authorization": API_KEY, "Content-Type": "application/json",
-               "User-Agent": "qidc-openclaw-skill/1.0"}
+               "User-Agent": "qidc-openclaw-skill/1.0", **source_headers(ENDPOINT_INITIALIZE)}
     try:
         req = urllib.request.Request(
             ENDPOINT_INITIALIZE,
@@ -730,7 +731,7 @@ def initialize_site():
 def call_get_company_info(collected):
     info = sanitize_company_info(collected)
     headers = {"Authorization": API_KEY, "Content-Type": "application/json",
-               "User-Agent": "qidc-openclaw-skill/1.0"}
+               "User-Agent": "qidc-openclaw-skill/1.0", **source_headers(ENDPOINT_GET_COMPANY_INFO)}
     try:
         req = urllib.request.Request(
             ENDPOINT_GET_COMPANY_INFO,
@@ -750,7 +751,7 @@ def call_get_company_info(collected):
 def call_generate_share_url():
     """获取临时分享链接"""
     headers = {"Authorization": API_KEY, "Content-Type": "application/json",
-               "User-Agent": "qidc-openclaw-skill/1.0"}
+               "User-Agent": "qidc-openclaw-skill/1.0", **source_headers(ENDPOINT_GENERATE_SHARE_URL)}
     try:
         req = urllib.request.Request(ENDPOINT_GENERATE_SHARE_URL,
                                      headers=headers, method="GET")
@@ -771,7 +772,7 @@ def call_read_index_html():
     返回 {"status": True/False, "message": "..."}
     """
     headers = {"Authorization": API_KEY, "Content-Type": "application/json",
-               "User-Agent": "qidc-openclaw-skill/1.0"}
+               "User-Agent": "qidc-openclaw-skill/1.0", **source_headers(ENDPOINT_READ_INDEX_HTML)}
     try:
         req = urllib.request.Request(ENDPOINT_READ_INDEX_HTML,
                                      headers=headers, method="GET")
@@ -794,7 +795,7 @@ def call_read_index_html():
 def call_site_status():
     """读取整站内容数量，避免把只有首页误报为整站成功。"""
     headers = {"Authorization": API_KEY, "Accept": "application/json",
-               "User-Agent": "qidc-openclaw-skill/1.0"}
+               "User-Agent": "qidc-openclaw-skill/1.0", **source_headers(ENDPOINT_SITE_STATUS)}
     try:
         req = urllib.request.Request(ENDPOINT_SITE_STATUS, headers=headers, method="GET")
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -824,6 +825,7 @@ def call_generate_website(requirement):
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
         "User-Agent": "qidc-openclaw-skill/1.0",
+        **source_headers(ENDPOINT_GENERATE_WEBSITE),
     }
 
     # 初始化 html_content 避免 UnboundLocalError

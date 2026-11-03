@@ -1,6 +1,7 @@
 ---
 name: website-manager
 description: Manage Nicebox AI websites through MCP tools with OpenClaw REST API scripts as fallback. Supports website generation, content drafts and previews, publishing, messages, and SEO/GEO detection and optimization.
+version: 0.3.30
 metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json"]}}}
 ---
 
