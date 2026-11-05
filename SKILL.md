@@ -1,7 +1,7 @@
 ---
 name: website-manager
 description: Manage Nicebox AI websites through MCP tools with OpenClaw REST API scripts as fallback. Supports website generation, content drafts and previews, publishing, messages, and SEO/GEO detection and optimization.
-version: 0.3.30
+version: 0.4.7
 metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json"]}}}
 ---
 
@@ -11,15 +11,18 @@ metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json
 
 ## [ROUTE] 调用通道
 
-1. Nicebox MCP Server 使用 Streamable HTTP，默认地址固定为 `https://aidev.nicebox.cn/mcp`，并已在 `agents/openai.yaml` 声明。连接时使用 `Authorization: Bearer <API_KEY>`，其中 API Key 从 `scripts/config.json` 的 `api_key` 读取，禁止在对话或日志中展示。
-2. 优先使用宿主已经注册的 `nicebox_*` MCP 工具。若宿主支持技能依赖自动注册，应直接使用上述默认地址连接，不要询问用户提供 MCP Server 地址。
-3. 宿主没有自动注册能力但允许添加 MCP Server 时，使用上述默认地址配置，不要让用户重复选择连接地址。只有用户明确要求覆盖默认端点时才询问新地址。
-4. 只有工具不存在、默认 MCP Server 不可达或宿主不支持 MCP 时，才使用 `scripts/` 普通 API 脚本；不要因为宿主尚未注册工具就先向用户询问地址。
+1. Nicebox MCP Server 使用 Streamable HTTP。主通道为 `https://ai.nicebox.cn/mcp`，备用通道为 `https://aidev.nicebox.cn/mcp`；`agents/openai.yaml` 只声明主通道。连接时使用同一个 `Authorization: Bearer <API_KEY>`，API Key 从 `scripts/config.json` 读取，禁止在对话或日志中展示。
+2. 每次新 API Key 或新连接先请求主通道并完成 MCP initialize 与站点状态校验。只有主通道发生 DNS/TLS/连接超时、Transport 初始化失败或 HTTP 5xx 等服务不可用，才用同一 Key 尝试备用通道。401/403、API Key 无效、站点无权访问、参数/确认错误及其他业务错误不得触发切换。
+3. 任一通道校验成功后，将其作为当前 API Key 在本次连接生命周期内的专属通道；后续所有工具和状态轮询保持同一通道。只有该通道后来确实不可用、API Key 更换或连接重建时才重新按“主通道 → 备用通道”探测。不得显示 Key，不得把 Key 作为缓存键明文保存。
+4. 优先使用宿主已经注册的 `nicebox_*` MCP 工具。宿主支持自动故障切换时按上述顺序处理；宿主只支持单一 MCP URL 时默认连接主通道，主通道不可用后引导其使用同一 Key 重新连接备用通道，不得同时注册两组同名工具。
+5. 通道切换前若写操作结果不明确，先在原通道用原 `operation_id/request_id/task_id` 查询；不得在另一通道重复创建草稿、任务、发布或其他写操作。业务错误不得通过切换通道绕过。
+6. 只有两个 MCP 通道都不可达或宿主不支持 MCP 时，才使用 `scripts/` 普通 API 脚本；不要因为宿主尚未注册工具就先向用户询问地址。
 5. 参数错误、权限不足、确认缺失等业务错误不能通过切换 REST API 绕过。
 6. 切换回退通道前简要告知用户，但不得展示 API Key。
 7. 用户更换 API Key、重新连接或切换站点后，立即废弃旧站点资料及所有文章、产品、报告、建站和发布任务 ID。下一次操作必须重新查询站点状态，展示实际站点名称和域名并等待确认；确认前不得写入。
 7. 详细映射见 [mcp_tools.skill.md](skills/mcp_tools.skill.md)。
 8. WorkBuddy 环境必须优先使用 MCP 异步建站工具，不得运行本地 `_full_gen.py`。仅不支持 MCP 的 Legacy 宿主才可使用该脚本；回退时必须 `python -u` 直接前台执行，禁止追加 `tail`、管道或输出捕获。
+9. 每次回复只处理用户最新消息对应的当前任务和目标对象。工具返回的无关既有问题、旧草稿或待发布内容不得进入回复、不得自动修复；只有它会直接阻止当前任务时才说明。旧文章/产品草稿保持休眠，用户明确恢复、预览或发布同一草稿时才重新提示。
 
 Base URL:
 
@@ -136,6 +139,11 @@ python config_manager.py
 | [MESSAGE] 查看留言 | [list_messages.skill.md](skills/list_messages.skill.md) | 查看客户留言/询盘 |
 | [LIST] 内容列表与搜索 | [list_content.skill.md](skills/list_content.skill.md) | 分页读取和模糊搜索文章/产品，展示预览链接 |
 | [STATUS] 站点状态 | [site_status.skill.md](skills/site_status.skill.md) | 检查站点当前状态 |
+| [PAGE] 页面代码只读分析 | [page_code_read.skill.md](skills/page_code_read.skill.md) | 搜索页面并读取 metadata/sections/full 原始模板和宽度设置 |
+| [EDIT] 页面修改草稿与校验 | [page_code_validate.skill.md](skills/page_code_validate.skill.md) | 在宿主上下文生成页面草稿并做确定性校验，尚不保存 |
+| [SAVE] 页面预览保存与回退 | [page_change_workflow.skill.md](skills/page_change_workflow.skill.md) | 临时预览、当次确认保存、幂等查询和历史版本回退 |
+| [COMPONENT] 动态组件与复杂页面 | [page_dynamic_components.skill.md](skills/page_dynamic_components.skill.md) | 产品、文章、FAQ、分类、搜索、表单和 JS 归属诊断 |
+| [SHARED] 共享头尾 | [shared_sections.skill.md](skills/shared_sections.skill.md) | 共享 Header/Footer 独立预览、保存和回退 |
 | [SEO] SEO/GEO 检测优化 | [seo_geo.skill.md](skills/seo_geo.skill.md) | 查看报告、确认检测、一键优化和复检 |
 
 ### [DEPLOY] 发布与部署
@@ -151,6 +159,14 @@ python config_manager.py
 | [KEY] 设置 API Key | [set_key.skill.md](skills/set_key.skill.md) | 查看/修改 config.json 中的 API 密钥 |
 | [API-REF] API 参考 | [api_reference.skill.md](skills/api_reference.skill.md) | 完整 API 端点、参数、SSE 事件规范 |
 | [TROUBLE] 故障排除 | [troubleshooting.skill.md](skills/troubleshooting.skill.md) | SIGKILL、编码、FTP 404 等常见问题解决 |
+
+页面代码修改必须先读取 [page-edit-draft.md](prompts/page-edit-draft.md)，再按任务加载 `references/page-edit-library/` 中对应模块。不要一次加载全部模块，也不要直接复制 `AiPrompts.php` 的整站生成提示词。
+
+页面响应式修改默认只使用两档：无前缀 class 为 `< 768px` 手机端，`md:*` 为 `>= 768px` 电脑端。未指定终端时必须同时保证两端排版和交互正常；指定只改一端时，另一端的最终渲染语义、专属结构和交互必须保持不变。
+
+图片上传工具返回成功和非空 `image_url` 后即视为图片已上传并登记。原样写入 HTML 或业务数据后直接进入正常页面校验和预览；禁止再探测 CDN 可访问性、Referer、防盗链、时间戳、素材列表或登记状态，也不得重复上传。
+
+共享 Header/Footer 修改必须读取 `skills/shared_sections.skill.md` 并走专用工具；至少展示同语言首页和普通内页样本预览，确认后独立保存并创建共享备份。共享保存不发布，发布必须重新走 FTP 确认。
 
 ## [INFO] 配置持久化
 
@@ -186,8 +202,11 @@ python config_manager.py
 
 - “发布文章/产品”与“发布网站”是完全不同的操作。存在 `article_id` 时只调用 `nicebox_publish_article`，存在 `product_id` 时只调用 `nicebox_publish_product`；仅把对应草稿改为显示状态，不执行 FTP、不覆盖站点、不检查 FTP 配置或域名。
 - 修改文章/产品排序必须先按真实 ID 精确搜索或按名称模糊搜索并展示六列信息、当前排序、新排序和“排序值越大展示越靠前”。唯一结果时用户确认后立即修改；多条结果时明确说明选择编号后将直接修改，用户选择即视为确认并立即修改，不再二次确认。
+- 当前只支持新增产品、文章，以及查询、搜索、排序、删除、草稿预览和发布；不支持修改已有产品、已有文章或已有 FAQ 的业务内容。用户要求编辑、更新、替换或修正已有记录的名称/标题、正文、摘要、封面/图片、价格、参数、分类、SEO 字段、FAQ 问题或答案时，MCP 和普通 API 都不得尝试写入、创建重复草稿或修改页面 HTML，直接回复：`当前暂不支持修改已有产品、文章或 FAQ 的内容，敬请期待。` 页面模板的产品/文章/FAQ 布局、样式、数量和分页配置不属于业务内容修改，仍可处理；排序、删除、显示/发布也继续使用原流程。
 - 删除文章/产品是不可恢复操作。必须先搜索并展示六列信息及不可恢复警告。唯一结果时用户确认删除后立即执行；多条结果时明确说明选择编号后将直接永久删除，用户选择即视为确认并立即删除，不再二次确认。一次只删除一条。
 - 只有用户明确说“发布网站、发布站点、整站上线、FTP 发布”时才进入 FTP 流程。只说“发布”但当前有内容草稿上下文时，优先发布该内容；没有明确上下文时先询问发布对象。
+- 同一页面存在当前对话创建且尚未保存的预览时，后续页面修改必须以上一预览 `after_html` 为基线并传 `base_preview_token`；新预览自动取代旧预览，只保存最新合并版本。不得要求用户选择保存哪一个版本。用户明确放弃上次修改时才从数据库版本重新开始。
+- 每次普通页面预览后优先使用宿主原生结构化提问能力，将“确定保存 / 继续修改 / 回退到本次修改前的版本”显示为可点击单选项；宿主不支持时才回退为文本选项。回退只撤销最近一步，并说明撤回内容与剩余可保存内容，再次提供相同选择。
 - 缺少封面时必须提示用户选择上传/提供图片 URL 或 AI 生成封面。
 - 用户选择 AI 生成文章或产品封面后，必须继续询问图片比例（`1:1`、`4:3`、`3:2`、`16:9`、`2:3`、`3:4`、`9:16`），并把选择传给生成工具，不得自行默认。
 - 网站 Logo 缺失时提示“提供 URL / AI 生成 / 暂不设置”。选择 AI 时继续让用户选择 `1:1`、`5:2`、`3:2`、`4:3`、`3:4` 或 `2:3`，生成并展示候选 Logo，用户接受后再写入网站资料。

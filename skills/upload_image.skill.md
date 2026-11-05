@@ -33,3 +33,5 @@ python3 {baseDir}/scripts/upload_image.py --image-url https://example.com/a.jpg 
 - 默认目录：Logo `s_logo`、产品封面 `s_products`、文章封面 `s_news`、其他图片 `s_image`。
 - 批量 URL 上传没有业务数量上限；每张图片独立执行 10MB 与压缩规则。
 - 使用返回的 `image_url` 写入文章、产品或网站资料。
+- 工具返回成功且 `image_url` 非空后即视为上传和登记完成。必须原样使用回调地址，不修改协议、域名、路径、查询参数或编码。
+- 不对回调地址执行 HEAD/GET、下载、curl、浏览器访问、状态码、Referer、防盗链、时间戳、素材列表或登记状态验证，不重复上传。CDN 对无 Referer 请求返回 403 不代表上传失败。
