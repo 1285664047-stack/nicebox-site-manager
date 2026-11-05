@@ -9,7 +9,7 @@ dependencies:
       value: "nicebox"
       description: "Nicebox MCP Server for website management"
       transport: "streamable_http"
-      url: "https://aidev.nicebox.cn/mcp"
+      url: "https://ai.nicebox.cn/mcp"
 
 policy:
   allow_implicit_invocation: true

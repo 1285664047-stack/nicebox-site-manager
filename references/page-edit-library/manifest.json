@@ -1,0 +1,23 @@
+{
+  "library_version": "1.0.10",
+  "prompt_version": "1.0.10",
+  "rules_version": "1.0.10",
+  "sources": [
+    "api/app/common/tools/ai/AiPrompts.php",
+    "api/app/common/tools/page/PageParser.php",
+    "api/app/common/tools/page/processors/",
+    "api/app/common/tools/ai/HtmlAnalyzer.php",
+    "api/app/common/tools/ai/HtmlHandler.php",
+    "api/app/openclaw/service/PageComponentDiagnosticService.php",
+    "api/app/openclaw/service/PageCodeValidationService.php",
+    "api/app/openclaw/service/PageChangeWorkflowService.php"
+  ],
+  "files": [
+    "core/document-and-style.md",
+    "core/javascript-ownership.md",
+    "components/dynamic-content.md",
+    "components/navigation-banner-media.md",
+    "components/forms-search-links.md",
+    "workflows/page-edit-dialogue.md"
+  ]
+}
