@@ -6,7 +6,7 @@ import json
 import sys
 from openclaw_client import OpenClawError, output, request
 
-DEFAULT_OPTIONS = {"batch_size": 30, "overwrite_mode": "smart", "generate_mode": "default", "clean_before_publish": False, "include_drafts": False, "upload_mode": "incremental"}
+DEFAULT_OPTIONS = {"batch_size": 30, "overwrite_mode": "smart", "publish_mode": "dynamic", "generate_mode": "default", "clean_before_publish": False, "include_drafts": False, "upload_mode": "incremental"}
 
 def parse_args():
     parser = argparse.ArgumentParser(description="FTP 配置、发布准备、上传和取消 API 回退工具")
@@ -28,7 +28,15 @@ def parse_args():
 def parse_options(raw):
     parsed = json.loads(raw)
     if not isinstance(parsed, dict): raise ValueError("--options-json 必须是 JSON object")
-    return {**DEFAULT_OPTIONS, **parsed}
+    options = {**DEFAULT_OPTIONS, **parsed}
+    if options["publish_mode"] not in ("dynamic", "static"):
+        raise ValueError("publish_mode 只能是 dynamic 或 static")
+    if options["upload_mode"] not in ("incremental", "full"):
+        raise ValueError("upload_mode 只能是 incremental 或 full")
+    options["generate_mode"] = "full_static" if options["publish_mode"] == "static" else "default"
+    if options.get("clean_before_publish"):
+        options["upload_mode"] = "full"
+    return options
 
 def need_confirmation(action, summary):
     output({"need_confirm": True, "action": action, "summary": summary})

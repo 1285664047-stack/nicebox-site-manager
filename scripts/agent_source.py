@@ -7,7 +7,7 @@ import re
 
 
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.json')
-SKILL_VERSION = '0.3.30'
+SKILL_VERSION = '0.4.7'
 
 
 def _config():
@@ -45,7 +45,14 @@ def _version(value):
 def source_headers(path='', purpose=''):
     config = _config()
     environment_agent = os.environ.get('NICEBOX_AGENT', '')
-    configured_agent = environment_agent or config.get('agent_code', '')
+    detected_agent = 'codex' if any(
+        os.environ.get(name)
+        for name in ('CODEX_HOME', 'CODEX_SESSION_ID', 'CODEX_THREAD_ID', 'CODEX_APP_RUNTIME_CLI_PATH')
+    ) else ''
+    config_agent = _plain(config.get('agent_code', ''), 100)
+    if _agent_code(config_agent) == 'unknown':
+        config_agent = ''
+    configured_agent = environment_agent or config_agent or detected_agent
     agent_code = _agent_code(configured_agent)
     distribution = _plain(
         os.environ.get('NICEBOX_DISTRIBUTION') or config.get('distribution_channel') or 'git',
@@ -54,9 +61,9 @@ def source_headers(path='', purpose=''):
     request_purpose = purpose or ('connection_sync' if path.rstrip('/').endswith('/site/status') else 'business_call')
     headers = {
         'X-Nicebox-Agent': agent_code,
-        'X-Nicebox-Agent-Evidence': 'environment' if environment_agent else ('runtime_config' if configured_agent else 'unknown'),
+        'X-Nicebox-Agent-Evidence': 'environment' if (environment_agent or detected_agent) else ('runtime_config' if configured_agent else 'unknown'),
         'X-Nicebox-Distribution': distribution,
-        'X-Nicebox-Skill-Version': _version(config.get('skill_version')) or SKILL_VERSION,
+        'X-Nicebox-Skill-Version': SKILL_VERSION,
         'X-Nicebox-Request-Purpose': request_purpose,
     }
     raw_name = _plain(os.environ.get('NICEBOX_AGENT_RAW') or config.get('agent_raw_name'), 100)
