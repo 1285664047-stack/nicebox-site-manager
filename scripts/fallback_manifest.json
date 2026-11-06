@@ -1,5 +1,6 @@
 {
   "nicebox_get_site_status": "api_tool.py nicebox_get_site_status",
+  "nicebox_get_release_info": "api_tool.py nicebox_get_release_info",
   "nicebox_get_site_source": "api_tool.py nicebox_get_site_source",
   "nicebox_list_languages": "api_tool.py nicebox_list_languages",
   "nicebox_verify_homepage": "api_tool.py nicebox_verify_homepage",

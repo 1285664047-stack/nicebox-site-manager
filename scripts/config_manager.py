@@ -10,9 +10,10 @@
 import os
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.json')
+INSTALLED_VERSIONS_FILE = os.path.join(os.path.dirname(__file__), 'installed_versions.json')
 
 
 def _empty_site_info():
@@ -32,13 +33,48 @@ def load_config():
     """加载配置文件"""
     if not os.path.exists(CONFIG_FILE):
         return None
-    
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         print(f'错误：无法读取配置文件 - {e}')
         return None
+
+
+def load_installed_versions():
+    """读取随当前安装包发布的 Skill/MCP 版本。"""
+    try:
+        with open(INSTALLED_VERSIONS_FILE, 'r', encoding='utf-8') as f:
+            value = json.load(f)
+    except (OSError, ValueError):
+        value = {}
+    return {
+        'skill_version': str(value.get('skill_version') or ''),
+        'mcp_version': str(value.get('mcp_version') or ''),
+    }
+
+
+def ensure_installation(config, force=False, now=None):
+    """确保存在当前安装版本和安装时间，升级后自动刷新。"""
+    versions = load_installed_versions()
+    if not versions['skill_version'] and not versions['mcp_version']:
+        return False
+    installation = config.get('installation')
+    installation = installation if isinstance(installation, dict) else {}
+    missing_time = not installation.get('installed_at') or not installation.get('installed_timestamp')
+    version_changed = (
+        installation.get('skill_version') != versions['skill_version'] or
+        installation.get('mcp_version') != versions['mcp_version']
+    )
+    if not force and not missing_time and not version_changed:
+        return False
+    timestamp = float(now if now is not None else datetime.now(timezone.utc).timestamp())
+    config['installation'] = {
+        'installed_at': datetime.fromtimestamp(timestamp, timezone.utc).isoformat().replace('+00:00', 'Z'),
+        'installed_timestamp': timestamp,
+        **versions,
+    }
+    return True
 
 
 def get_api_key(default=None):
@@ -52,6 +88,7 @@ def get_api_key(default=None):
 def save_config(config):
     """保存配置文件"""
     try:
+        ensure_installation(config)
         config['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
@@ -74,7 +111,9 @@ def init_config():
         "agent_code": "unknown",
         "agent_version": "",
         "distribution_channel": "git",
-        "skill_version": "0.4.7",
+        "skill_version": "0.4.16",
+        "installation": {},
+        "version_check": {},
         "site_info": _empty_site_info(),
         "connection": {},
         "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),

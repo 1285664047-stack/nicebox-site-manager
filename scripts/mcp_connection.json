@@ -1,0 +1,7 @@
+{
+  "primary_url": "https://ai.nicebox.cn/mcp",
+  "fallback_url": "https://aidev.nicebox.cn/mcp",
+  "connect_timeout_seconds": 25,
+  "request_timeout_seconds": 600,
+  "session_ttl_seconds": 1500
+}

@@ -13,6 +13,7 @@ from config_reader import get_base_url
 
 TOOLS = {
     "nicebox_get_site_status": ("GET", "/site/status"),
+    "nicebox_get_release_info": ("GET", "/site/getReleaseInfo"),
     "nicebox_get_site_source": ("GET", "/site/getFromUrl"),
     "nicebox_list_languages": ("GET", "/site_pages/getLanguageList"),
     "nicebox_verify_homepage": ("GET", "/site_pages/readIndexHtml"),
