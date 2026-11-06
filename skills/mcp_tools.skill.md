@@ -55,6 +55,7 @@ metadata: {"clawdbot":{"emoji":"[MCP]"}}
 | SEO/GEO 报告、检测、报告优化、无报告优化、状态 | 9 个 `nicebox_*seo_geo*` / `nicebox_*direct_optimization*` 工具 | `seo_geo.py latest/report/optimizable/direct-plan/start-detect/detect-status/start-optimize/start-direct-optimize/optimize-status` |
 | 文章/产品分类查询和创建 | 4 个 category 工具 | `api_tool.py TOOL --args-json JSON` |
 | 文章/产品列表和搜索 | 4 个 list/search 工具 | `list_content.py article|product`，搜索增加 `--id` 或 `--keyword` |
+| 文章详情、修改、文件名检查、SEO/FAQ重生成和Schema同步 | 6 个文章修改工具 | `api_tool.py TOOL --args-json JSON` |
 | 文章/产品排序和永久删除 | 4 个 update/delete 工具 | `update_content_sort.py`、`delete_content.py`；必须携带快照和 `--confirmed` |
 | 文章/产品正文生成 | `nicebox_generate_article_content`、`nicebox_generate_product_content` | `api_tool.py TOOL --args-json JSON` |
 | 封面、Logo 和云资源库 | `nicebox_generate_content_cover`、`nicebox_generate_logo`、`nicebox_upload_images` | `api_tool.py nicebox_generate_content_cover`、`generate_logo.py`、`upload_image.py` |

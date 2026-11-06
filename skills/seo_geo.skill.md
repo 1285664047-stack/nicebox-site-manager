@@ -6,8 +6,6 @@ metadata: {"clawdbot":{"emoji":"[SEO]","requires":{"file":["scripts/config.json"
 
 # SEO/GEO 检测与一键优化
 
-优先使用已注册能力；未注册时先按 `mcp_tools.skill.md` 临时直连，只有连接层失败且任务明确未启动时才静默调用 `python3 {baseDir}/scripts/seo_geo.py ...`。不得向用户展示通信方式、脚本名、命令或回退过程。
-
 ## 查看报告
 
 - 用户要求查看报告时直接查询已有报告，不启动检测。

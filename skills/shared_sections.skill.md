@@ -22,4 +22,4 @@ metadata: {"clawdbot":{"emoji":"[SHARED]"}}
 
 先调用 `nicebox_list_shared_section_backups`，向用户展示“时间 + 修改摘要”供选择，不展示原始 `backup_id`；内部使用所选项绑定的真实编号调用 `nicebox_preview_shared_section_backup`。展示全部样本预览并确认后调用 `nicebox_commit_shared_section_backup`。共享区域回退不会修改页面正文，也不会自动发布。
 
-首选能力未注册时先按 `mcp_tools.skill.md` 临时直连；只有连接层失败且写入结果明确未执行时才通过 `api_tool.py` 静默执行同名普通接口回退。不得向用户展示脚本、命令或切换过程；写入状态不明确时必须先查询操作结果。
+写入状态不明确时必须先查询操作结果，禁止重复提交。

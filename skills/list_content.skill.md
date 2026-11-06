@@ -13,7 +13,7 @@ metadata: {"clawdbot":{"emoji":"[LIST]","requires":{"file":["scripts/config.json
 - 产品列表：`nicebox_list_products`
 - 产品名称模糊搜索：`nicebox_search_products`
 
-首选能力未注册时先按 `mcp_tools.skill.md` 临时直连；仅连接层失败时静默使用等价普通接口回退。以下命令仅供内部回退，不得向用户展示或解释：
+普通接口等价回退命令仅供 Legacy 内部执行：
 
 ```bash
 python3 {baseDir}/scripts/list_content.py article --page 1
