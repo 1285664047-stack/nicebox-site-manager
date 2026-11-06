@@ -16,7 +16,7 @@
 10. 新增或修改表单时，读取表单生命周期规则。新增表单不自行生成 `data-sign`；已有表单原样保留 `data-sign`。确认保存后由服务端同步 `forms` 并把新签名回填最终页面 HTML。
 11. 修改 Header 或导航时必须读取共享 Header 原文并走共享头部流程。导航文字、链接、数量、顺序、层级、页面 ID、多级菜单和当前页高亮属于运行时数据，不作为静态 HTML 修改；样式修改只作用于明确的 PC 或移动端容器。
 12. 移动端导航定向修改必须以 `#mobile-menu` 或 `[data-typeid^="mobile-navs-"]` 为边界：为其内部 `a[data-type="nav"]`/`.mobile-nav-item` 的直接父元素补 `flex flex-col w-full`，为匹配项自身补 `block`，并验证移动根容器之外的 HTML 未变化。
-13. 修改产品、文章、FAQ、分类、详情或分页组件时，只改模板结构和样式，不把预览业务数据写死。名称、图片、价格、摘要、日期、正文、链接、数量、顺序、层级、页码、展开/激活状态及内容 ID 均视为运行时数据。用户要求修改已有产品、文章或 FAQ 的实际业务内容时，直接提示“当前暂不支持修改已有产品、文章或 FAQ 的内容，敬请期待”，不得通过 MCP、普通 API、页面 HTML 或新增草稿规避；排序、删除、发布及模板配置仍走各自流程。
+13. 修改产品、文章、FAQ、分类、详情或分页组件时，只改模板结构和样式，不把预览业务数据写死。名称、图片、价格、摘要、日期、正文、链接、数量、顺序、层级、页码、展开/激活状态及内容 ID 均视为运行时数据。用户要求修改已有文章业务内容时转入 `skills/edit_article.skill.md`；已有产品或独立 FAQ 内容仍提示“当前暂不支持修改已有产品或 FAQ 的内容，敬请期待”，不得通过页面 HTML或新增草稿规避；排序、删除、发布及模板配置仍走各自流程。
 14. 每次修改只诊断、校验、说明和修复当前 `target_selector` 及其必要依赖。其他区域的既有问题和历史草稿不进入回复，也不顺手修改；只有直接阻止当前修改时才简述阻塞关系。
 15. `data-config` 只能写到目标动态组件自身的 `products/newslist/faq` 元素，不能写到外层普通根节点。禁止 `products`、`newslist`、`faq/faqlist` 动态列表嵌套，多个列表使用兄弟结构。
 16. 响应式默认只使用两档：无前缀 class 对应 `< 768px` 手机端，`md:*` 对应 `>= 768px` 电脑端。用户未指定终端时，新增或修改内容必须同时保证两端的布局、间距、文字、图片、显示状态和交互可用且美观。
@@ -24,14 +24,17 @@
 18. 用户只要求手机端时，只改无前缀 class 或手机端专属容器；必要时补齐 `md:*` 覆盖以锁定原电脑端结果，电脑端 DOM 和交互必须保持最终渲染语义不变。
 19. 草稿校验前检查两档最终级联结果。若单端修改无法与另一端安全隔离，不得生成可保存预览，先说明需要拆分响应式 class 或终端专属容器。
 20. 同一页面已有未保存预览时，先查询上一预览取得完整 `after_html`，以它作为本次 `before_html` 继续修改；创建新预览时传上一令牌为 `base_preview_token`。不得重新从数据库原文开始，除非用户明确放弃上次修改。
+21. HTML 混合文本节点规范是强制结构要求。对本次生成或重写范围逐元素检查：父元素同时具有元素子节点和非空直接文本节点时，必须逐个用 `<span>` 包裹直接文本；纯文本、纯空白、已包裹文本以及 `script/style/textarea/pre/code` 内文本不处理。不得改写文字、标签、顺序或属性；存在未包裹混排时不得提交校验。
+22. 每次生成完整 `after_html` 后、调用确定性校验前，必须执行当前差异 Review。Review 只包含用户最新要求、当前 `target_selector`、必要依赖和本次 diff；按本次任务加载相关规则，禁止全页巡检。目标外既有问题、其他业务内容、历史草稿和旧待办不得检查、提示或修复。Review 发现问题时只修复本次差异内问题，重新 Review 通过后才能校验和生成预览。
 
 ## 按任务加载规则
 
 - 所有修改先读取 `../references/page-edit-library/core/document-and-style.md`。
 - 涉及脚本或交互时读取 `../references/page-edit-library/core/javascript-ownership.md`。
 - 产品、文章、FAQ、分类、详情页、分页或重复卡片读取 `../references/page-edit-library/components/dynamic-content.md`。
-- Header、Footer、导航、轮播、Logo、视频或地图读取 `../references/page-edit-library/components/navigation-banner-media.md`。
+- Header、Footer、导航、普通轮播、连续走马灯、选项卡、Logo、视频或地图读取 `../references/page-edit-library/components/navigation-banner-media.md`。
 - 表单、站内搜索、链接、图片或二维码读取 `../references/page-edit-library/components/forms-search-links.md`。
 - 对话提示和停止条件读取 `../references/page-edit-library/workflows/page-edit-dialogue.md`。
+- 生成草稿后、确定性校验前读取 `../references/page-edit-library/workflows/page-edit-review.md`，只 Review 当前差异。
 
 只加载与当前任务有关的模块。规则库与运行时诊断冲突时，以当前 API 返回的 `rules_version` 和确定性校验结果为准，不得绕过校验。

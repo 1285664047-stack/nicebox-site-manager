@@ -10,7 +10,10 @@
     "api/app/common/tools/ai/HtmlHandler.php",
     "api/app/openclaw/service/PageComponentDiagnosticService.php",
     "api/app/openclaw/service/PageCodeValidationService.php",
-    "api/app/openclaw/service/PageChangeWorkflowService.php"
+    "api/app/openclaw/service/PageChangeWorkflowService.php",
+    "frontend/src/utils/singleOriginMarqueePrompt.js",
+    "frontend/src/utils/imageTextCardPrompt.js",
+    "frontend/src/composables/useElementSelector.js"
   ],
   "files": [
     "core/document-and-style.md",
@@ -18,6 +21,7 @@
     "components/dynamic-content.md",
     "components/navigation-banner-media.md",
     "components/forms-search-links.md",
-    "workflows/page-edit-dialogue.md"
+    "workflows/page-edit-dialogue.md",
+    "workflows/page-edit-review.md"
   ]
 }
