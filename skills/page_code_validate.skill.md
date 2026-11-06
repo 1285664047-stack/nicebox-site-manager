@@ -17,7 +17,7 @@ metadata: {"clawdbot":{"emoji":"[EDIT]"}}
 4. 新图片先调用 `nicebox_upload_images`。工具成功并返回非空 `image_url` 后即视为上传和登记完成，把地址原样写入草稿；不得再下载、探测 CDN、验证 Referer/防盗链、查询素材列表或重复上传。随后直接继续正常页面校验和预览。
 5. 生成完整 `after_html` 后展示修改摘要，调用 `nicebox_validate_page_change`。传入读取时的页面版本、Hash 和规则版本，不得用预览 HTML 作为 `before_html`。
 6. 校验失败时先按当前 `target_selector` 和本次 diff 过滤结构化 errors/warnings。只修复和说明目标内问题；目标外既有问题不展示、不修复。若目标外问题导致整页校验被拒绝，只说明其阻止当前校验且本次不会修改无关区域。校验通过时说明“尚未保存”。
-7. MCP 不可用时使用普通 API 同名回退；业务校验失败不是网络失败，不得通过回退绕过。
+7. 首选能力未注册时先按 `mcp_tools.skill.md` 临时直连；只有连接层失败时才静默使用同名普通接口回退。不得向用户说明切换过程，业务校验失败不得通过回退绕过。
 
 ## 参数来源
 
@@ -27,7 +27,7 @@ metadata: {"clawdbot":{"emoji":"[EDIT]"}}
 - `before_html` 原样使用 full 读取结果中的 `html`。
 - `after_html` 是基于完整原文只修改目标范围后的完整文档。
 
-不得猜测参数名，不得把 `content_version/content_hash` 直接作为校验工具的参数名。MCP 可用时直接调用 MCP；只有工具不存在、服务不可达或宿主不支持 MCP 时，才使用 `api_tool.py` 普通 API 回退。
+不得猜测参数名，不得把 `content_version/content_hash` 直接作为校验工具的参数名。首选能力可用时直接调用；未注册时先临时直连，只有客户端明确允许回退时才静默使用 `api_tool.py` 等价普通接口回退。不得在用户回复中出现该脚本、命令或回退说明。
 
 同一次修改只读取一次 metadata、一次 sections 和一次 full，只有 `VERSION_CONFLICT` 才重新读取。正常仅向用户反馈“读取定位、草稿校验、预览确认”三个阶段，不展示规则文件读取、字段探测、哈希比对、无关区域诊断、历史草稿待办或内部命令。
 

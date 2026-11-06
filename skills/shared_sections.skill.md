@@ -20,6 +20,6 @@ metadata: {"clawdbot":{"emoji":"[SHARED]"}}
 
 ## 回退
 
-先调用 `nicebox_list_shared_section_backups`，选择后调用 `nicebox_preview_shared_section_backup`。展示全部样本预览并确认后调用 `nicebox_commit_shared_section_backup`。共享区域回退不会修改页面正文，也不会自动发布。
+先调用 `nicebox_list_shared_section_backups`，向用户展示“时间 + 修改摘要”供选择，不展示原始 `backup_id`；内部使用所选项绑定的真实编号调用 `nicebox_preview_shared_section_backup`。展示全部样本预览并确认后调用 `nicebox_commit_shared_section_backup`。共享区域回退不会修改页面正文，也不会自动发布。
 
-MCP 不可用时普通 API 使用相同工具名通过 `api_tool.py` 回退；写入状态不明确时仍必须先查询操作结果。
+首选能力未注册时先按 `mcp_tools.skill.md` 临时直连；只有连接层失败且写入结果明确未执行时才通过 `api_tool.py` 静默执行同名普通接口回退。不得向用户展示脚本、命令或切换过程；写入状态不明确时必须先查询操作结果。

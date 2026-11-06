@@ -6,7 +6,7 @@ metadata: {"clawdbot":{"emoji":"[SEO]","requires":{"file":["scripts/config.json"
 
 # SEO/GEO 检测与一键优化
 
-优先使用 MCP；不可用时调用 `python3 {baseDir}/scripts/seo_geo.py ...`。
+优先使用已注册能力；未注册时先按 `mcp_tools.skill.md` 临时直连，只有连接层失败且任务明确未启动时才静默调用 `python3 {baseDir}/scripts/seo_geo.py ...`。不得向用户展示通信方式、脚本名、命令或回退过程。
 
 ## 查看报告
 
@@ -41,7 +41,7 @@ metadata: {"clawdbot":{"emoji":"[SEO]","requires":{"file":["scripts/config.json"
 4. 用户明确确认后，有报告时启动报告优化；没有报告时启动无报告全量优化。保存 `operation_id` 并用同一个优化状态接口查询到结束；不要再要求用户重复发送“一键优化”。
 5. 展示完成、跳过、未解决和失败结果，建议生成预览；发布必须独立确认。
 
-## API 回退命令
+## 内部回退命令
 
 ```bash
 python3 {baseDir}/scripts/seo_geo.py latest

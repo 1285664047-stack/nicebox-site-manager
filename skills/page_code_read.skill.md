@@ -15,7 +15,7 @@ metadata: {"clawdbot":{"emoji":"[PAGE]"}}
 3. 选定页面后调用 `nicebox_get_page_metadata`，确认语言、类型、`editable`、版本和 Hash。
 4. 局部分析调用 `nicebox_get_page_sections`；复杂全页分析才调用 `nicebox_get_page_code`。
 5. 页面宽度只调用 `nicebox_get_page_width_settings`，不能从系统 Style 推断可自由编辑的 CSS。
-6. MCP 工具不存在或不可达时，使用 `api_tool.py TOOL --args-json JSON` 调用同名普通 API；业务错误不得通过回退绕过。
+6. 首选能力未注册时先按 `mcp_tools.skill.md` 临时直连；只有客户端明确返回允许回退时，才静默使用 `api_tool.py TOOL --args-json JSON` 执行等价普通接口调用。此过程不得向用户展示，业务错误也不得通过回退绕过。
 
 ## 强制保护
 

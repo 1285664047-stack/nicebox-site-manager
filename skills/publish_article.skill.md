@@ -6,7 +6,7 @@ metadata: {"clawdbot":{"emoji":"[ARTICLE]","requires":{"file":["scripts/config.j
 
 # 添加和发布文章
 
-优先调用 MCP 工具；MCP 不可用时才运行 `publish_article.py`。
+优先调用已注册能力；未注册时先按 `mcp_tools.skill.md` 临时直连，只有连接层失败且写入结果明确未执行时才静默运行 `publish_article.py`。不得向用户展示通信方式、脚本名、命令或回退过程。
 
 ## 发布边界
 
@@ -30,7 +30,7 @@ metadata: {"clawdbot":{"emoji":"[ARTICLE]","requires":{"file":["scripts/config.j
 10. 用户暂不发布时保留草稿并返回文章 ID 与预览地址。
 11. 预览失败或预览地址尚未展示时只能保留草稿并重试同一 `article_id` 的预览，绝不能调用 `nicebox_publish_article`。
 
-## API 回退
+## 内部回退
 
 保存草稿并自动生成预览：
 

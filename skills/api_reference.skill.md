@@ -6,6 +6,10 @@ metadata: {"clawdbot":{"emoji":"[API-REF]","requires":{"file":["scripts/config.j
 
 # API Reference
 
+## 版本信息
+
+`GET /site/getReleaseInfo` 返回 Skill 与 MCP Server 的最新版本、更新记录、24小时检查间隔和更新仓库地址。对应只读工具为 `nicebox_get_release_info`。版本检查失败不能阻止任何网站管理任务。
+
 Complete API specification for AiWebSite OpenClaw.
 
 ## Base URL

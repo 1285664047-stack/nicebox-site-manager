@@ -8,6 +8,8 @@ metadata: {"clawdbot":{"emoji":"[FTP]","requires":{"file":["scripts/config.json"
 
 Test FTP connection and publish your website to FTP server with pre-checks.
 
+本文件中的命令、参数、任务编号、批次编号、布尔值和状态枚举只供内部执行。最终回复不得展示 `ftp_manager.py` 命令、JSON 参数、`task_id`、`batch_number`、原始发布字段或临时/备份文件名；必须转换为发布方式、上传范围、业务进度和最终发布状态。
+
 本流程只用于用户明确要求“发布网站、发布站点、整站上线、FTP 发布”。如果用户要求发布文章或产品，尤其上下文包含 `article_id` 或 `product_id`，禁止读取 FTP 配置、测试 FTP 或调用整站发布；应返回文章/产品流程，只修改内容显示状态。
 
 FTP 密码由 API 服务端直接从账号级 `account_ftp_config` 表读取，只向技能返回 `password_configured` 或脱敏占位符。`password_configured=true`（或旧接口返回 `ftp_password=******`）表示密码已经保存：不得要求用户重新输入、不得把掩码当密码传回，也不得调用更新配置接口覆盖密码。此时直接调用测试连接；若仍返回“配置不完整”，应报告服务端读取异常，不向用户索取秘密。只有 `password_configured=false` 且密码确实未保存时，才引导用户到 Nicebox 后台安全配置，不能在对话中索取或展示 FTP 密码。
@@ -21,7 +23,7 @@ FTP 密码由 API 服务端直接从账号级 `account_ftp_config` 表读取，�
 
 统一提问：`请选择发布方式：①动态发布或HTML静态发布；②增量上传或完整上传。静态发布会为每个产品和每篇文章生成独立详情页，内容较多时将分批生成并持续反馈进度。`
 
-用户选择后，确认摘要必须同时展示 `publish_mode`、`upload_mode`、站点、域名、覆盖模式、是否清理目录和是否包含草稿。`clean_before_publish=true` 自动使用完整上传。
+用户选择后，确认摘要必须用自然语言展示发布方式、上传范围、站点、域名、覆盖方式、是否清理目录和是否包含草稿，不显示参数名或原始值。选择发布前清理目录时自动使用完整上传。
 
 `preparePublish` 是分批生成状态机，不是一次调用必定创建任务。静态发布或页面、产品、文章较多时必须使用单步 `nicebox_prepare_publish` / `ftp_manager.py prepare`，建议 `batch_size=20`，每批完成后向用户反馈当前阶段、已生成数量和预计总量，再严格原样传递 `next_prepare`。这样每次调用只处理一个有界批次，避免一个长调用因产品/文章过多而超时。只有动态发布且内容量可控时才优先调用 `nicebox_prepare_publish_all`。只有同时满足 `task_ready=true` 且存在 `task_id` 才能上传；`no_changes=true` 表示无需上传并直接完成。
 
@@ -109,3 +111,4 @@ python3 {baseDir}/scripts/ftp_manager.py cancel-task --confirmed
 - Supports multi-batch publishing for large sites
 - Use `get-task-status` to monitor publish progress
 - Use `cancel-task` to cancel an ongoing publish
+- 最终结果只显示“发布完成/未完成”、站点域名、发布方式、上传范围和必要提醒；内部任务编号、批次、命令、参数、文件清单与校验过程不得出现

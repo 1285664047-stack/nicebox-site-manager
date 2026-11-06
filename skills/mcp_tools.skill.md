@@ -1,16 +1,19 @@
 ---
 name: mcp-tools
-description: Prefer Nicebox MCP tools and use local OpenClaw API scripts only as fallback
+description: Select registered tools, temporary direct access, or equivalent API fallback without exposing transport details
 metadata: {"clawdbot":{"emoji":"[MCP]"}}
 ---
 
-# MCP 优先、普通 API 回退
+# 内部通信选择与静默回退
 
-## MCP Server 连接
+> 本文件是内部执行规范。不得把其中的协议、地址、工具名、脚本名、命令、能力映射或故障切换过程输出给用户。
+
+不得在普通业务结果中生成“MCP 执行链路”、Transport、端点、工具调用顺序或校验统计。仅当用户明确要求调试 MCP 调用链路时，才说明其明确询问的部分。
+
+## 连接配置
 
 - Transport：Streamable HTTP
-- 主 URL：`https://ai.nicebox.cn/mcp`
-- 备用 URL：`https://aidev.nicebox.cn/mcp`
+- 主、备用服务地址只从机器配置读取，不在 Skill 文本或用户回复中展示。
 - Authentication：`Authorization: Bearer <API_KEY>`
 - API Key 从 `{baseDir}/scripts/config.json` 的 `api_key` 读取，不得输出给用户或写入日志。
 - 新 API Key 或新连接始终先用主 URL 完成 initialize 和 `nicebox_get_site_status` 校验。只有 DNS/TLS/超时、Transport 初始化失败或 HTTP 5xx 才尝试备用 URL；401/403、无权限、业务校验或参数错误不切换。
@@ -21,19 +24,31 @@ metadata: {"clawdbot":{"emoji":"[MCP]"}}
 ## 调用优先级
 
 1. 宿主存在对应 `nicebox_*` MCP 工具时，优先调用 MCP。
-2. 主、备用 MCP Server 均不可达或宿主不支持 MCP 时，才运行 `scripts/` 中对应 Python 脚本，通过普通 OpenClaw REST API 完成同一操作。
-3. MCP 返回业务错误（参数错误、没有权限、没有可优化项、用户未确认）时，不得为了绕过校验而回退 REST API。
-4. 回退前向用户简要说明连接器工具暂不可用，将使用同一账号 API Key 调用 Nicebox API；不得显示 API Key。
-5. MCP 与 API 的成功标准相同：只有结构化结果明确成功，才能告诉用户成功。
+2. 对应工具未注册时，运行 `scripts/mcp_direct_client.py call --tool TOOL --args-json JSON` 临时直连。客户端从现有配置读取 API Key，自动初始化并短期复用会话；不得把 API Key 放入命令参数、输出或日志。
+3. 临时客户端仅在返回 `allow_api_fallback=true` 时，才运行 `scripts/` 中对应 Python 脚本，通过普通 OpenClaw REST API 完成同一操作。认证、权限、参数、确认缺失、没有可优化项及其他业务错误不得回退。
+4. 已注册 MCP 或临时直连返回业务错误时，不得为了绕过校验而回退 REST API。
+5. 三种内部方式的选择和切换必须静默执行。不得告知用户工具未注册、正在临时连接、正在切换通道或正在改用普通接口；成功时只展示业务结果。
+6. 三种方式的成功标准相同：只有结构化结果明确成功，才能告诉用户成功。
+
+### 临时直连约束
+
+- 仅当宿主没有注册对应工具时使用；已注册工具不可达时也可使用，但写操作结果不明确时必须先查询原操作状态，不能直接重提。
+- 服务地址和超时只从 `scripts/mcp_connection.json` 或机器环境变量读取，不接受用户输入的任意地址。
+- 临时文件只允许保存会话 ID、选中通道、协议版本、创建时间和不可逆 API Key 指纹，禁止保存明文 API Key。
+- 更换 API Key、临时会话过期或服务端会话失效后自动重新初始化。认证失败不得尝试备用通道或普通 API。
+- 只有 DNS、TLS、超时、协议初始化失败或 HTTP 5xx 等连接问题允许切换备用通道；业务错误不切换。
+- 命令退出码 `0` 表示取得结构化结果；`2` 表示连接层失败且允许普通 API 回退；`3` 或 `4` 表示不得回退，必须按返回的业务提示处理。
+
+若三种内部方式都失败，仅输出与用户行动有关的业务提示，不输出内部诊断。认证失效提示重新连接；暂时不可达提示稍后重试；不支持的能力提示更新连接器。禁止输出服务地址、接口路径、工具名、脚本名、命令、请求头、状态码或堆栈。
 
 ## 能力映射
 
-完整的 46 项机器可检查映射位于 `scripts/fallback_manifest.json`；发布前运行
+完整的 77 项机器可检查映射位于 `scripts/fallback_manifest.json`；发布前运行
 `python scripts/audit_fallback_parity.py`，任何新增 MCP 工具没有普通 API 回退时检查都会失败。
 
 | 能力组 | MCP 工具 | 普通 API 回退 |
 | --- | --- | --- |
-| 站点状态、来源、语言、首页验证 | `nicebox_get_site_status`、`nicebox_get_site_source`、`nicebox_list_languages`、`nicebox_verify_homepage` | `api_tool.py TOOL` |
+| 版本、站点状态、来源、语言、首页验证 | `nicebox_get_release_info`、`nicebox_get_site_status`、`nicebox_get_site_source`、`nicebox_list_languages`、`nicebox_verify_homepage` | `api_tool.py TOOL` |
 | 页面代码只读能力 | `nicebox_list_pages`、`nicebox_get_page_metadata`、`nicebox_get_page_sections`、`nicebox_get_page_code`、`nicebox_get_page_width_settings`、`nicebox_diagnose_page_components` | `api_tool.py TOOL --args-json JSON` |
 | 页面草稿校验 | `nicebox_validate_page_change`、`nicebox_preview_page_width_settings` | `api_tool.py TOOL --args-json JSON` |
 | 页面预览、保存与回退 | `nicebox_create_page_preview`、`nicebox_create_page_width_preview`、`nicebox_get_page_preview`、`nicebox_abandon_page_preview`、`nicebox_commit_page_change`、`nicebox_commit_page_width_settings`、`nicebox_get_page_change_operation`、`nicebox_list_page_backups`、`nicebox_preview_page_backup`、`nicebox_commit_page_backup` | `api_tool.py TOOL --args-json JSON` |
