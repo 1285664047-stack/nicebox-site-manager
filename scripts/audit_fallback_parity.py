@@ -38,6 +38,15 @@ PAGE_TOOLS = {
     "nicebox_commit_page_backup": "commitPageBackup",
 }
 
+ARTICLE_EDIT_TOOLS = {
+    "nicebox_get_article_detail": "getDetail",
+    "nicebox_check_article_filename": "checkFilename",
+    "nicebox_update_article": "update",
+    "nicebox_regenerate_article_seo": "regenerateSeo",
+    "nicebox_regenerate_article_faq": "regenerateFaq",
+    "nicebox_sync_article_schema": "syncSchemaFromFaq",
+}
+
 LEGACY_PAGE_FLOW_FILES = [
     ROOT / "nicebox-site-manager-main" / "skills" / "page_code_read.skill.md",
     ROOT / "nicebox-site-manager-main" / "skills" / "page_code_validate.skill.md",
@@ -84,6 +93,32 @@ def main():
         if absent:
             page_contract_errors.append({"tool": tool, "missing": absent})
 
+    article_contract_errors = []
+    article_controller_source = (ROOT / "api" / "app" / "openclaw" / "controller" / "Article.php").read_text(encoding="utf-8")
+    article_skill_sources = {
+        "legacy_skill": joined_text([
+            ROOT / "nicebox-site-manager-main" / "SKILL.md",
+            ROOT / "nicebox-site-manager-main" / "skills" / "edit_article.skill.md",
+            ROOT / "nicebox-site-manager-main" / "skills" / "mcp_tools.skill.md",
+        ]),
+        "workbuddy_skill": joined_text([
+            ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "SKILL.md",
+            ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "文章修改流程.md",
+        ]),
+    }
+    for tool, controller_method in ARTICLE_EDIT_TOOLS.items():
+        checks = {
+            "mcp": tool in tools,
+            "fallback_manifest": tool in manifest,
+            "ordinary_api_script": ('"%s"' % tool) in api_tool_source,
+            "ordinary_api_controller": ("function %s(" % controller_method) in article_controller_source,
+            "legacy_skill": tool in article_skill_sources["legacy_skill"] or "edit_article.skill.md" in article_skill_sources["legacy_skill"],
+            "workbuddy_skill": "文章修改流程" in article_skill_sources["workbuddy_skill"],
+        }
+        absent = [name for name, present in checks.items() if not present]
+        if absent:
+            article_contract_errors.append({"tool": tool, "missing": absent})
+
     prompt_library_errors = []
     canonical_prompt_dir = ROOT / "doc" / "workbuddy" / "页面修改能力" / "page-edit-prompts"
     prompt_manifest_file = canonical_prompt_dir / "manifest.json"
@@ -128,10 +163,10 @@ def main():
             if token not in source_text:
                 prompt_library_errors.append("missing detail contract: %s" % label)
 
-    if missing or stale or missing_scripts or page_contract_errors or prompt_library_errors:
-        print(json.dumps({"ok": False, "mcp_tool_count": len(tools), "fallback_count": len(manifest), "missing": missing, "stale": stale, "missing_scripts": missing_scripts, "page_contract_errors": page_contract_errors, "prompt_library_errors": prompt_library_errors}, ensure_ascii=False, indent=2))
+    if missing or stale or missing_scripts or page_contract_errors or article_contract_errors or prompt_library_errors:
+        print(json.dumps({"ok": False, "mcp_tool_count": len(tools), "fallback_count": len(manifest), "missing": missing, "stale": stale, "missing_scripts": missing_scripts, "page_contract_errors": page_contract_errors, "article_contract_errors": article_contract_errors, "prompt_library_errors": prompt_library_errors}, ensure_ascii=False, indent=2))
         return 1
-    print(json.dumps({"ok": True, "mcp_tool_count": len(tools), "fallback_count": len(manifest), "page_tool_count": len(PAGE_TOOLS), "prompt_library_version": prompt_manifest["library_version"], "message": "所有 MCP 工具均已登记普通 API 回退，页面修改工具与提示词库已同步到普通 API 和两个 Skill"}, ensure_ascii=False, indent=2))
+    print(json.dumps({"ok": True, "mcp_tool_count": len(tools), "fallback_count": len(manifest), "page_tool_count": len(PAGE_TOOLS), "article_edit_tool_count": len(ARTICLE_EDIT_TOOLS), "prompt_library_version": prompt_manifest["library_version"], "message": "所有 MCP 工具均已登记普通 API 回退，页面修改和文章修改能力已同步到普通 API 和两个 Skill"}, ensure_ascii=False, indent=2))
     return 0
 
 if __name__ == "__main__": sys.exit(main())
