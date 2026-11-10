@@ -7,9 +7,6 @@ import re
 
 
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.json')
-SKILL_VERSION = '0.4.16'
-
-
 def _config():
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as handle:
@@ -63,8 +60,9 @@ def source_headers(path='', purpose=''):
         'X-Nicebox-Agent': agent_code,
         'X-Nicebox-Agent-Evidence': 'environment' if (environment_agent or detected_agent) else ('runtime_config' if configured_agent else 'unknown'),
         'X-Nicebox-Distribution': distribution,
-        'X-Nicebox-Skill-Version': SKILL_VERSION,
+        'X-Nicebox-Skill-Version': _version(config.get('skill_version')) or 'unknown',
         'X-Nicebox-Request-Purpose': request_purpose,
+        'X-Nicebox-Transport': 'api',
     }
     raw_name = _plain(os.environ.get('NICEBOX_AGENT_RAW') or config.get('agent_raw_name'), 100)
     agent_version = _version(os.environ.get('NICEBOX_AGENT_VERSION') or config.get('agent_version'))
