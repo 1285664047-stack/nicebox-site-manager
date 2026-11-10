@@ -51,3 +51,15 @@ https://<dynamic_domain>/api/template/preview/share/token/xxx
 - No parameters needed (the API uses the site_id from the API key)
 - The website must have content before generating a share URL
 - If the site has no content, the script will prompt an error message
+
+## User-facing link format
+
+Do not append validity text or any explanation to the URL. Copy the returned URL exactly and render it on its own line:
+
+```markdown
+[打开预览](https://<dynamic_domain>/api/template/preview/share/token/xxx)
+
+有效期：预计 2 小时
+```
+
+Never place `（2小时有效）`, a page name, company name, punctuation, or other prose inside the Markdown link target.

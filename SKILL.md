@@ -1,7 +1,7 @@
 ---
 name: website-manager
 description: Manage Nicebox AI websites, content drafts and previews, publishing, messages, and SEO/GEO workflows without exposing internal transport details.
-version: 0.4.19
+version: 0.4.27
 metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json"]}}}
 ---
 
@@ -38,8 +38,13 @@ metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json
 | 新增文章 | [publish_article.skill.md](skills/publish_article.skill.md) |
 | 修改已有文章 | [edit_article.skill.md](skills/edit_article.skill.md) |
 | 新增产品 | [publish_product.skill.md](skills/publish_product.skill.md) |
+| 修改已有产品 | [edit_product.skill.md](skills/edit_product.skill.md) |
+| 新增独立 FAQ 或 FAQ 分类 | [create_faq.skill.md](skills/create_faq.skill.md) |
+| 新增页面、栏目、列表页、详情模板或外链 | [create_page.skill.md](skills/create_page.skill.md) |
+| 修改已有独立 FAQ | [edit_faq.skill.md](skills/edit_faq.skill.md) |
 | 内容列表、搜索、排序或删除 | [list_content.skill.md](skills/list_content.skill.md) |
-| 分类、语言、留言或站点状态 | [list_categories.skill.md](skills/list_categories.skill.md)、[list_languages.skill.md](skills/list_languages.skill.md)、[list_messages.skill.md](skills/list_messages.skill.md) 或 [site_status.skill.md](skills/site_status.skill.md) 中命中的一个 |
+| 分类查询、创建、修改或删除 | [list_categories.skill.md](skills/list_categories.skill.md) |
+| 语言、留言或站点状态 | [list_languages.skill.md](skills/list_languages.skill.md)、[list_messages.skill.md](skills/list_messages.skill.md) 或 [site_status.skill.md](skills/site_status.skill.md) 中命中的一个 |
 | 页面代码读取或分析 | [page_code_read.skill.md](skills/page_code_read.skill.md) |
 | 页面代码修改和校验 | [page_code_validate.skill.md](skills/page_code_validate.skill.md) |
 | 页面预览、连续修改、保存或回退 | [page_change_workflow.skill.md](skills/page_change_workflow.skill.md) |
@@ -57,7 +62,7 @@ metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json
 - 用户更换 Key、重新连接或切换站点后，废弃旧站点和任务上下文；下一次写操作前重新确认实际站点。
 - 高风险操作必须展示真实影响并等待确认，不得替用户确认。已有确认只对参数未变化的同一阶段有效。
 - 新文章/产品无论用户要求草稿还是直接发布，都先创建草稿并展示预览；只有用户看到本次预览后再次确认，才把该内容设为显示。内容发布不等于整站发布。
-- 已有文章按文章修改流程处理；已有产品和独立 FAQ 内容暂不支持修改。页面模板的布局、样式、数量和分页不属于业务内容修改。
+- 已有文章、产品和独立 FAQ 分别按对应修改流程处理。产品货币和附件暂不支持修改；修改已有独立 FAQ 时只支持问题、答案、分类、语言、发布时间、显示状态和排序，新增独立 FAQ 走独立创建流程。页面模板的布局、样式、数量和分页不属于业务内容修改。
 - 初始化、重新生成、页面保存/回退、共享头尾、检测、优化和整站发布的顺序及确认文案以对应主流程为准，不得合并跨风险阶段确认。
 - 未保存页面预览上的后续修改继续叠加；每次预览提供“确定保存 / 继续修改 / 回退到本次修改前的版本”。
 - 页面修改只处理当前目标和必要依赖，不检查或修复用户未要求的其他区域。
@@ -71,6 +76,7 @@ metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json
 - 文章/产品编号等用于用户查询、选择、排序或删除的业务编号可以展示。只有用户明确要求代码、属性、参数或实现原理时，才展示与当前问题直接相关的技术内容。
 - 长任务只反馈用户可理解的业务阶段、等待时间和进度，不播报内部轮询、读取、重试或回退。
 - 最终回复只给业务结果、实际变化、预览/访问地址、保存/发布状态和必要下一步。普通结果用一句状态和 1 至 3 条变化，不主动增加技术细节。
+- 所有 URL 必须逐字符使用工具返回的 `preview_url`、`share_url`、`domain` 或下载地址，禁止把有效期、括号、页面名、公司名、TITLE、标点或说明拼进 URL。链接单独一行，使用 `[打开预览](原始URL)`、`[打开网站](原始URL)` 或 `[下载文件](原始URL)`；有效期、截止时间和状态在下一行单独说明。不得输出后面紧跟中文括号的裸 URL。
 - 认证失效提示重新连接；暂时不可达提示稍后重试；写入结果未知时先查询同一任务状态。
 
 ## 配置约束

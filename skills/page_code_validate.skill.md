@@ -40,7 +40,7 @@ metadata: {"clawdbot":{"emoji":"[EDIT]"}}
 
 - 不修改 `tailwind.config`、全站主题、全站字体、`systemDefaultStyle260918` 或 `disableJumpScript`。
 - 不直接编辑 `contentWidthSettings` 或 `contentMobileWidthSettings`。
-- 非必要不新增 `<style>`、行内 `style` 或外部 CSS；确需局部 CSS 时提供原因和范围，禁止全局标签或通配选择器。
+- 新增或修改样式必须使用 Tailwind class；禁止新增或修改普通 `<style>`、行内 `style` 和外部 CSS。原页面已有旧 CSS 只能原样保留。
 - 不删除动态组件必需的 `data-type` 链路，不把具体产品/文章预览数据固化到模板。
 - 不新增危险脚本、危险 URL、外部表单提交或未知外部脚本。
 - 单独修改电脑端时不得改变手机端基础 class、专属结构或交互；单独修改手机端时必须用必要的 `md:*` 覆盖锁定原电脑端结果，不得改变电脑端专属结构或交互。无法隔离时停止，不创建可保存预览。

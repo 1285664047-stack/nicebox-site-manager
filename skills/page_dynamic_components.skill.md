@@ -1,6 +1,6 @@
 # 动态组件与复杂页面修改
 
-本流程只处理产品、文章、FAQ、分类、搜索、分页、详情模板或表单的页面结构、展示配置和样式修改，不处理业务记录。已有文章内容修改转入 `edit_article.skill.md`；已有产品或独立 FAQ 内容修改提示“当前暂不支持修改已有产品或 FAQ 的内容，敬请期待”，不得先调用页面诊断工具。确认属于页面模板修改后，必须先调用 `nicebox_diagnose_page_components`，并始终传入当前目标的精确 `target_selector`。Legacy 普通接口等价命令仅供内部执行：
+本流程只处理产品、文章、FAQ、分类、搜索、分页、详情模板或表单的页面结构、展示配置和样式修改，不处理业务记录。已有文章内容修改转入 `edit_article.skill.md`，已有产品内容修改转入 `edit_product.skill.md`，已有独立 FAQ 内容修改转入 `edit_faq.skill.md`。不得把业务记录修改分流到页面诊断或创建新草稿。确认属于页面模板修改后，必须先调用 `nicebox_diagnose_page_components`，并始终传入当前目标的精确 `target_selector`。Legacy 普通接口等价命令仅供内部执行：
 
 ```bash
 python scripts/api_tool.py nicebox_diagnose_page_components --args-json '{"page_id":123,"target_selector":"#target"}'

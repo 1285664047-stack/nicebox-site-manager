@@ -43,10 +43,31 @@ Authorization: Bearer YOUR_API_KEY
 | POST | `/article/publishSaved` | Publish a saved article by article_id |
 | GET | `/article/getCategories` | List article categories |
 | POST | `/article/createCategory` | Create an article category |
+| GET | `/article/getCategoryImpact` | Inspect an article category branch and associated articles |
+| POST | `/article/updateCategory` | Partially update a confirmed article category |
+| POST | `/article/deleteCategory` | Permanently delete a confirmed article category branch |
 | POST | `/product/save` | Create or update product draft |
+| GET | `/product/getDetail` | Read complete product fields and content hash |
+| POST | `/product/checkFilename` | Check filename against other products |
+| POST | `/product/update` | Partially update confirmed product fields |
+| POST | `/product/regenerateSeo` | Regenerate product SEO fields and Schema |
+| POST | `/product/regenerateFaq` | Replace existing product FAQ and sync Schema |
+| POST | `/product/syncSchemaFromFaq` | Deterministically sync product FAQPage Schema |
 | POST | `/product/publishSaved` | Publish a saved product by product_id |
 | GET | `/product/getCategories` | List product categories |
 | POST | `/product/createCategory` | Create a product category |
+| GET | `/product/getCategoryImpact` | Inspect a product category branch and associated products |
+| POST | `/product/updateCategory` | Partially update a confirmed product category |
+| POST | `/product/deleteCategory` | Permanently delete a confirmed product category branch |
+| GET | `/faq/getCategories` | List or search standalone FAQ management categories |
+| POST | `/faq/createCategory` | Create a standalone FAQ management category |
+| POST | `/faq/create` | Create a standalone FAQ record after confirmation |
+| GET | `/faq/getDetail` | Read a standalone FAQ and its content hash |
+| POST | `/faq/update` | Partially update a confirmed standalone FAQ |
+| POST | `/faq/delete` | Permanently delete one confirmed standalone FAQ |
+| GET | `/faq/getCategoryImpact` | Inspect an FAQ category branch and associated FAQs |
+| POST | `/faq/updateCategory` | Partially update a confirmed FAQ category |
+| POST | `/faq/deleteCategory` | Permanently delete a confirmed FAQ category branch |
 | POST | `/ai_tools/generateContentCover` | Generate article/product cover or Logo candidate with `aspect_ratio` |
 | GET | `/site_pages/getLanguageList` | List site languages |
 | GET | `/site_pages/readIndexHtml` | Read index HTML |
@@ -89,6 +110,8 @@ Authorization: Bearer YOUR_API_KEY
 | `locale` | No | 语言代码，默认 `zh-CN` |
 
 普通 REST 认证仍使用裸 API Key：`Authorization: <api_key>`，不加 `Bearer`。
+
+分类修改和删除前必须先调用对应的 `getCategoryImpact`，展示后代分类和关联内容影响，并在用户确认后原样传回 `expected_impact_hash`。删除分类不会删除关联 FAQ、产品或文章，而是把关联内容改为无分类；存在后代时必须明确选择 `delete_scope=branch`。分类语言修改存在后代时必须传 `locale_scope=branch`。
 
 调用示例：
 
