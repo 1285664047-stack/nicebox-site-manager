@@ -17,6 +17,12 @@ PAGE_DIAGNOSTIC_SERVICE = ROOT / "api" / "app" / "openclaw" / "service" / "PageC
 MCP_INSTRUCTIONS_FILE = ROOT / "mcp-server" / "src" / "instructions.ts"
 
 PAGE_TOOLS = {
+    "nicebox_analyze_page_creation": "analyzePageCreation",
+    "nicebox_create_page_draft": "createPageDraft",
+    "nicebox_get_page_creation_draft": "getPageCreationDraft",
+    "nicebox_abandon_page_creation_draft": "abandonPageCreationDraft",
+    "nicebox_commit_page_creation": "commitPageCreation",
+    "nicebox_get_page_creation_operation": "getPageCreationOperation",
     "nicebox_list_pages": "listPages",
     "nicebox_get_page_metadata": "getPageMetadata",
     "nicebox_get_page_sections": "getPageSections",
@@ -47,7 +53,41 @@ ARTICLE_EDIT_TOOLS = {
     "nicebox_sync_article_schema": "syncSchemaFromFaq",
 }
 
+PRODUCT_EDIT_TOOLS = {
+    "nicebox_get_product_detail": "getDetail",
+    "nicebox_check_product_filename": "checkFilename",
+    "nicebox_update_product": "update",
+    "nicebox_regenerate_product_seo": "regenerateSeo",
+    "nicebox_regenerate_product_faq": "regenerateFaq",
+    "nicebox_sync_product_schema": "syncSchemaFromFaq",
+}
+
+FAQ_EDIT_TOOLS = {
+    "nicebox_list_faq_categories": "getCategories",
+    "nicebox_search_faq_categories": "getCategories",
+    "nicebox_create_faq_category": "createCategory",
+    "nicebox_create_faq": "create",
+    "nicebox_list_faqs": "list",
+    "nicebox_search_faqs": "list",
+    "nicebox_get_faq_detail": "getDetail",
+    "nicebox_update_faq": "update",
+    "nicebox_delete_faq": "delete",
+    "nicebox_get_faq_category_impact": "getCategoryImpact",
+    "nicebox_update_faq_category": "updateCategory",
+    "nicebox_delete_faq_category": "deleteCategory",
+}
+
+CATEGORY_MANAGEMENT_TOOLS = {
+    "nicebox_get_product_category_impact": "getCategoryImpact",
+    "nicebox_update_product_category": "updateCategory",
+    "nicebox_delete_product_category": "deleteCategory",
+    "nicebox_get_article_category_impact": "getCategoryImpact",
+    "nicebox_update_article_category": "updateCategory",
+    "nicebox_delete_article_category": "deleteCategory",
+}
+
 LEGACY_PAGE_FLOW_FILES = [
+    ROOT / "nicebox-site-manager-main" / "skills" / "create_page.skill.md",
     ROOT / "nicebox-site-manager-main" / "skills" / "page_code_read.skill.md",
     ROOT / "nicebox-site-manager-main" / "skills" / "page_code_validate.skill.md",
     ROOT / "nicebox-site-manager-main" / "skills" / "page_change_workflow.skill.md",
@@ -55,6 +95,7 @@ LEGACY_PAGE_FLOW_FILES = [
 ]
 
 WORKBUDDY_PAGE_FLOW_FILES = [
+    ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "新增页面流程.md",
     ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "页面代码读取流程.md",
     ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "页面修改草稿与校验流程.md",
     ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "页面预览保存与回退流程.md",
@@ -119,6 +160,83 @@ def main():
         if absent:
             article_contract_errors.append({"tool": tool, "missing": absent})
 
+    product_contract_errors = []
+    product_controller_source = (ROOT / "api" / "app" / "openclaw" / "controller" / "Product.php").read_text(encoding="utf-8")
+    product_skill_sources = {
+        "legacy_skill": joined_text([
+            ROOT / "nicebox-site-manager-main" / "SKILL.md",
+            ROOT / "nicebox-site-manager-main" / "skills" / "edit_product.skill.md",
+            ROOT / "nicebox-site-manager-main" / "skills" / "mcp_tools.skill.md",
+        ]),
+        "workbuddy_skill": joined_text([
+            ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "SKILL.md",
+            ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "产品修改流程.md",
+        ]),
+    }
+    for tool, controller_method in PRODUCT_EDIT_TOOLS.items():
+        checks = {
+            "mcp": tool in tools,
+            "fallback_manifest": tool in manifest,
+            "ordinary_api_script": ('"%s"' % tool) in api_tool_source,
+            "ordinary_api_controller": ("function %s(" % controller_method) in product_controller_source,
+            "legacy_skill": tool in product_skill_sources["legacy_skill"] or "edit_product.skill.md" in product_skill_sources["legacy_skill"],
+            "workbuddy_skill": "产品修改流程" in product_skill_sources["workbuddy_skill"],
+        }
+        absent = [name for name, present in checks.items() if not present]
+        if absent:
+            product_contract_errors.append({"tool": tool, "missing": absent})
+
+    faq_contract_errors = []
+    faq_controller_source = (ROOT / "api" / "app" / "openclaw" / "controller" / "Faq.php").read_text(encoding="utf-8")
+    faq_skill_sources = {
+        "legacy_skill": joined_text([
+            ROOT / "nicebox-site-manager-main" / "SKILL.md",
+            ROOT / "nicebox-site-manager-main" / "skills" / "edit_faq.skill.md",
+            ROOT / "nicebox-site-manager-main" / "skills" / "create_faq.skill.md",
+            ROOT / "nicebox-site-manager-main" / "skills" / "mcp_tools.skill.md",
+        ]),
+        "workbuddy_skill": joined_text([
+            ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "SKILL.md",
+            ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "FAQ修改流程.md",
+            ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "内容管理流程.md",
+        ]),
+    }
+    for tool, controller_method in FAQ_EDIT_TOOLS.items():
+        checks = {
+            "mcp": tool in tools,
+            "fallback_manifest": tool in manifest,
+            "ordinary_api_script": ('"%s"' % tool) in api_tool_source,
+            "ordinary_api_controller": ("function %s(" % controller_method) in faq_controller_source,
+            "legacy_skill": "create_faq.skill.md" in faq_skill_sources["legacy_skill"] or "edit_faq.skill.md" in faq_skill_sources["legacy_skill"],
+            "workbuddy_skill": "独立 FAQ" in faq_skill_sources["workbuddy_skill"] or "FAQ修改流程" in faq_skill_sources["workbuddy_skill"],
+        }
+        absent = [name for name, present in checks.items() if not present]
+        if absent:
+            faq_contract_errors.append({"tool": tool, "missing": absent})
+
+    category_contract_errors = []
+    category_skill_sources = joined_text([
+        ROOT / "nicebox-site-manager-main" / "skills" / "list_categories.skill.md",
+        ROOT / "nicebox-site-manager-main" / "skills" / "mcp_tools.skill.md",
+        ROOT / "workbuddy-connector" / "skills" / "nicebox-site-manager" / "references" / "分类修改与删除流程.md",
+    ])
+    controller_sources = {
+        "product": product_controller_source,
+        "article": article_controller_source,
+    }
+    for tool, controller_method in CATEGORY_MANAGEMENT_TOOLS.items():
+        category_type = "product" if "_product_" in tool else "article"
+        checks = {
+            "mcp": tool in tools,
+            "fallback_manifest": tool in manifest,
+            "ordinary_api_script": ('"%s"' % tool) in api_tool_source,
+            "ordinary_api_controller": ("function %s(" % controller_method) in controller_sources[category_type],
+            "skills": "expected_impact_hash" in category_skill_sources and "删除分类不会删除" in category_skill_sources,
+        }
+        absent = [name for name, present in checks.items() if not present]
+        if absent:
+            category_contract_errors.append({"tool": tool, "missing": absent})
+
     prompt_library_errors = []
     canonical_prompt_dir = ROOT / "doc" / "workbuddy" / "页面修改能力" / "page-edit-prompts"
     prompt_manifest_file = canonical_prompt_dir / "manifest.json"
@@ -163,10 +281,10 @@ def main():
             if token not in source_text:
                 prompt_library_errors.append("missing detail contract: %s" % label)
 
-    if missing or stale or missing_scripts or page_contract_errors or article_contract_errors or prompt_library_errors:
-        print(json.dumps({"ok": False, "mcp_tool_count": len(tools), "fallback_count": len(manifest), "missing": missing, "stale": stale, "missing_scripts": missing_scripts, "page_contract_errors": page_contract_errors, "article_contract_errors": article_contract_errors, "prompt_library_errors": prompt_library_errors}, ensure_ascii=False, indent=2))
+    if missing or stale or missing_scripts or page_contract_errors or article_contract_errors or product_contract_errors or faq_contract_errors or category_contract_errors or prompt_library_errors:
+        print(json.dumps({"ok": False, "mcp_tool_count": len(tools), "fallback_count": len(manifest), "missing": missing, "stale": stale, "missing_scripts": missing_scripts, "page_contract_errors": page_contract_errors, "article_contract_errors": article_contract_errors, "product_contract_errors": product_contract_errors, "faq_contract_errors": faq_contract_errors, "category_contract_errors": category_contract_errors, "prompt_library_errors": prompt_library_errors}, ensure_ascii=False, indent=2))
         return 1
-    print(json.dumps({"ok": True, "mcp_tool_count": len(tools), "fallback_count": len(manifest), "page_tool_count": len(PAGE_TOOLS), "article_edit_tool_count": len(ARTICLE_EDIT_TOOLS), "prompt_library_version": prompt_manifest["library_version"], "message": "所有 MCP 工具均已登记普通 API 回退，页面修改和文章修改能力已同步到普通 API 和两个 Skill"}, ensure_ascii=False, indent=2))
+    print(json.dumps({"ok": True, "mcp_tool_count": len(tools), "fallback_count": len(manifest), "page_tool_count": len(PAGE_TOOLS), "article_edit_tool_count": len(ARTICLE_EDIT_TOOLS), "product_edit_tool_count": len(PRODUCT_EDIT_TOOLS), "faq_edit_tool_count": len(FAQ_EDIT_TOOLS), "category_management_tool_count": len(CATEGORY_MANAGEMENT_TOOLS) + 3, "prompt_library_version": prompt_manifest["library_version"], "message": "所有 MCP 工具均已登记普通 API 回退，FAQ删除和三类分类管理能力已同步到普通 API 和两个 Skill"}, ensure_ascii=False, indent=2))
     return 0
 
 if __name__ == "__main__": sys.exit(main())
