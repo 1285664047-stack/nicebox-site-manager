@@ -4,7 +4,7 @@
 - `SCOPE-001/003`：section 模式必须使用读取返回的 selector，目标之外不得变化。
 - `SYSTEM-001`：系统保护 Style/Script 必须保持实质内容不变。
 - `SHARED-001`：普通页面草稿不得修改共享 Header/Footer。
-- `CSS-001/005`：Tailwind 优先；必要局部 CSS 必须说明原因并限定范围。
+- `CSS-001/004/005`：新增和修改样式必须使用 Tailwind class；禁止新增或修改普通 Style、行内 style 和外部 CSS。旧 CSS 只能原样保留。
 - `RESPONSIVE-001`：仅按无前缀 `< 768px` 手机端和 `md:*` `>= 768px` 电脑端两档新增响应式规则；未限定终端时两端都必须可用且排版正常。
 - `RESPONSIVE-002`：单端修改必须保持另一端最终级联结果、专属 DOM 和交互语义不变；无法隔离时校验不通过。
 - `COMPONENT-001/004`：产品、文章等动态组件必须保留运行时需要的 data-type 结构。
