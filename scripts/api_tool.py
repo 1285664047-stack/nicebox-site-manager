@@ -15,6 +15,8 @@ TOOLS = {
     "nicebox_get_site_status": ("GET", "/site/status"),
     "nicebox_get_release_info": ("GET", "/site/getReleaseInfo"),
     "nicebox_get_site_source": ("GET", "/site/getFromUrl"),
+    "nicebox_get_knowledge_profile": ("GET", "/knowledge/getProfile"),
+    "nicebox_update_knowledge_profile": ("POST", "/knowledge/updateProfile"),
     "nicebox_list_languages": ("GET", "/site_pages/getLanguageList"),
     "nicebox_verify_homepage": ("GET", "/site_pages/readIndexHtml"),
     "nicebox_analyze_page_creation": ("POST", "/site_pages/analyzePageCreation"),
