@@ -69,6 +69,7 @@ metadata: {"clawdbot":{"emoji":"[MCP]"}}
 | 留言和整站预览 | `nicebox_list_messages`、`nicebox_generate_preview` | `api_tool.py TOOL --args-json JSON` |
 | FTP 配置、测试、准备、上传、状态和取消 | 6 个 FTP/publish 工具 | `ftp_manager.py get-config/test-connection/prepare/start/get-task-status/cancel-task` |
 | 初始化和企业资料 | `nicebox_initialize_site`、`nicebox_save_company_info` | `initialize_site.py`、`api_tool.py nicebox_save_company_info` |
+| AI知识库基本资料 | `nicebox_get_knowledge_profile`、`nicebox_update_knowledge_profile` | `api_tool.py` 同名工具 |
 | 整站生成和进度 | `nicebox_start_website_generation`、`nicebox_get_website_generation_status` | `python -u _full_gen.py` 前台 SSE 流程，持续显示进度并返回最终结果 |
 
 `api_tool.py` 的 `--args-json` 使用与对应 MCP 工具相同的字段。例如：

@@ -40,7 +40,7 @@ metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json
 | 新增产品 | [publish_product.skill.md](skills/publish_product.skill.md) |
 | 修改已有产品 | [edit_product.skill.md](skills/edit_product.skill.md) |
 | 新增独立 FAQ 或 FAQ 分类 | [create_faq.skill.md](skills/create_faq.skill.md) |
-| 新增页面、栏目、列表页、详情模板或外链 | [create_page.skill.md](skills/create_page.skill.md) |
+| 新增页面、栏目、列表页、详情模板或链接页面（站外/站内锚点） | [create_page.skill.md](skills/create_page.skill.md) |
 | 修改已有独立 FAQ | [edit_faq.skill.md](skills/edit_faq.skill.md) |
 | 内容列表、搜索、排序或删除 | [list_content.skill.md](skills/list_content.skill.md) |
 | 分类查询、创建、修改或删除 | [list_categories.skill.md](skills/list_categories.skill.md) |
@@ -54,6 +54,7 @@ metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json
 | 整站发布 | [ftp_publish.skill.md](skills/ftp_publish.skill.md) |
 | 分享预览或上传图片 | [generate_share_url.skill.md](skills/generate_share_url.skill.md) 或 [upload_image.skill.md](skills/upload_image.skill.md) |
 | 设置连接 | [set_key.skill.md](skills/set_key.skill.md) |
+| AI知识库基本资料、公司资料、公司基本资料、企业资料、企业基本资料或网站基本资料的查看或修改 | [knowledge_base.skill.md](skills/knowledge_base.skill.md) |
 
 页面修改时先读取 `prompts/page-edit-draft.md`，再按任务从 `references/page-edit-library/manifest.json` 只加载命中的模块；完成草稿后读取 `workflows/page-edit-review.md`，Review 只覆盖当前目标和本次差异，不得一次加载整个规则库。
 
