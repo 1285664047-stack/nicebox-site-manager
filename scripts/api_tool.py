@@ -18,6 +18,14 @@ TOOLS = {
     "nicebox_get_knowledge_profile": ("GET", "/knowledge/getProfile"),
     "nicebox_update_knowledge_profile": ("POST", "/knowledge/updateProfile"),
     "nicebox_list_languages": ("GET", "/site_pages/getLanguageList"),
+    "nicebox_update_language_config": ("POST", "/site_languages/updateConfig"),
+    "nicebox_preview_language_migration": ("POST", "/site_languages/previewMigration"),
+    "nicebox_execute_language_migration": ("POST", "/site_languages/executeMigration"),
+    "nicebox_get_language_delete_impact": ("GET", "/site_languages/getDeleteImpact"),
+    "nicebox_delete_language": ("POST", "/site_languages/delete"),
+    "nicebox_get_default_language_impact": ("GET", "/site_languages/getDefaultImpact"),
+    "nicebox_set_default_language": ("POST", "/site_languages/setDefault"),
+    "nicebox_get_language_operation": ("GET", "/site_languages/getOperation"),
     "nicebox_verify_homepage": ("GET", "/site_pages/readIndexHtml"),
     "nicebox_analyze_page_creation": ("POST", "/site_pages/analyzePageCreation"),
     "nicebox_create_page_draft": ("POST", "/site_pages/createPageDraft"),
@@ -26,6 +34,18 @@ TOOLS = {
     "nicebox_commit_page_creation": ("POST", "/site_pages/commitPageCreation"),
     "nicebox_get_page_creation_operation": ("GET", "/site_pages/getPageCreationOperation"),
     "nicebox_list_pages": ("GET", "/site_pages/listPages"),
+    "nicebox_get_page_management_detail": ("GET", "/site_pages/getPageManagementDetail"),
+    "nicebox_update_page_sort": ("POST", "/site_pages/updatePageSort"),
+    "nicebox_update_page_parent": ("POST", "/site_pages/updatePageParent"),
+    "nicebox_copy_pages": ("POST", "/site_pages/copyPages"),
+    "nicebox_check_page_deletion": ("POST", "/site_pages/checkPageDeletion"),
+    "nicebox_delete_pages": ("POST", "/site_pages/deletePages"),
+    "nicebox_update_page_status": ("POST", "/site_pages/updatePageStatus"),
+    "nicebox_check_page_locale_change": ("POST", "/site_pages/checkPageLocaleChange"),
+    "nicebox_update_page_locale": ("POST", "/site_pages/updatePageLocale"),
+    "nicebox_update_page_filename": ("POST", "/site_pages/updatePageFilename"),
+    "nicebox_generate_page_seo": ("POST", "/site_pages/generatePageSeo"),
+    "nicebox_update_page_settings": ("POST", "/site_pages/updatePageSettings"),
     "nicebox_get_page_metadata": ("GET", "/site_pages/getPageMetadata"),
     "nicebox_get_page_sections": ("GET", "/site_pages/getPageSections"),
     "nicebox_get_page_code": ("GET", "/site_pages/getPageCode"),
@@ -107,12 +127,26 @@ def parse_args():
     return parser.parse_args()
 
 
+def normalize_payload(tool, payload):
+    """Keep legacy REST calls compatible with the canonical MCP contract."""
+    if tool != "nicebox_update_page_settings" or "changes" in payload:
+        return payload
+    fields = ("page_name", "seo_title", "seo_keywords", "seo_description")
+    changes = {field: payload[field] for field in fields if field in payload}
+    if not changes:
+        return payload
+    normalized = {key: value for key, value in payload.items() if key not in fields}
+    normalized["changes"] = changes
+    return normalized
+
+
 def main():
     args = parse_args()
     try:
         payload = json.loads(args.args_json)
         if not isinstance(payload, dict):
             raise ValueError("--args-json 必须是 JSON object")
+        payload = normalize_payload(args.tool, payload)
         if args.tool == "nicebox_generate_content_cover" and not payload.get("aspect_ratio"):
             output({"need_input": True, "message": "请先让用户选择图片比例，再生成封面。"})
             return 3
