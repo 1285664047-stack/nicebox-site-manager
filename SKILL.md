@@ -1,7 +1,7 @@
 ---
 name: website-manager
 description: Manage Nicebox AI websites, content drafts and previews, publishing, messages, and SEO/GEO workflows without exposing internal transport details.
-version: 0.4.27
+version: 0.4.28
 metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json"]}}}
 ---
 
@@ -41,10 +41,11 @@ metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json
 | 修改已有产品 | [edit_product.skill.md](skills/edit_product.skill.md) |
 | 新增独立 FAQ 或 FAQ 分类 | [create_faq.skill.md](skills/create_faq.skill.md) |
 | 新增页面、栏目、列表页、详情模板或链接页面（站外/站内锚点） | [create_page.skill.md](skills/create_page.skill.md) |
+| 页面列表、筛选、排序、设置上级页面、调整页面层级、复制、删除、显示隐藏、语言归属、文件名、页面名称、TDK或AI一键生成页面标题/关键词/描述 | [manage_pages.skill.md](skills/manage_pages.skill.md) |
 | 修改已有独立 FAQ | [edit_faq.skill.md](skills/edit_faq.skill.md) |
 | 内容列表、搜索、排序或删除 | [list_content.skill.md](skills/list_content.skill.md) |
 | 分类查询、创建、修改或删除 | [list_categories.skill.md](skills/list_categories.skill.md) |
-| 语言、留言或站点状态 | [list_languages.skill.md](skills/list_languages.skill.md)、[list_messages.skill.md](skills/list_messages.skill.md) 或 [site_status.skill.md](skills/site_status.skill.md) 中命中的一个 |
+| 多语言查询、自定义名称、排序、整站语言搬迁、设置默认入口或删除语言；留言或站点状态 | [list_languages.skill.md](skills/list_languages.skill.md)、[list_messages.skill.md](skills/list_messages.skill.md) 或 [site_status.skill.md](skills/site_status.skill.md) 中命中的一个 |
 | 页面代码读取或分析 | [page_code_read.skill.md](skills/page_code_read.skill.md) |
 | 页面代码修改和校验 | [page_code_validate.skill.md](skills/page_code_validate.skill.md) |
 | 页面预览、连续修改、保存或回退 | [page_change_workflow.skill.md](skills/page_change_workflow.skill.md) |
@@ -73,6 +74,7 @@ metadata: {"clawdbot":{"emoji":"[TOOL]","requires":{"file":["scripts/config.json
 ## 对话与输出边界
 
 - 只补问会阻止当前任务的必要信息，不虚构企业资料、价格、联系方式、资质、产品参数或用户确认。
+- 需要用户在有限候选中选择或确认时，优先调用宿主原生结构化提问能力，显示简短、互斥的可点击单选项；不得只要求用户手工回复“确认某某”等固定短语。原生能力不可用时，才列出语义完全相同的文本选项。自由填写名称、文案、网址等开放输入不强行改成选项。
 - 不展示协议、服务地址、工具名、脚本、命令、凭据、内部 ID、Hash、原始参数、状态枚举、错误码、执行链路、诊断过程或校验统计。
 - 文章/产品编号等用于用户查询、选择、排序或删除的业务编号可以展示。只有用户明确要求代码、属性、参数或实现原理时，才展示与当前问题直接相关的技术内容。
 - 长任务只反馈用户可理解的业务阶段、等待时间和进度，不播报内部轮询、读取、重试或回退。

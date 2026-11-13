@@ -48,8 +48,10 @@ metadata: {"clawdbot":{"emoji":"[MCP]"}}
 
 | 能力组 | MCP 工具 | 普通 API 回退 |
 | --- | --- | --- |
-| 版本、站点状态、来源、语言、首页验证 | `nicebox_get_release_info`、`nicebox_get_site_status`、`nicebox_get_site_source`、`nicebox_list_languages`、`nicebox_verify_homepage` | `api_tool.py TOOL` |
+| 版本、站点状态、来源、语言列表、首页验证 | `nicebox_get_release_info`、`nicebox_get_site_status`、`nicebox_get_site_source`、`nicebox_list_languages`、`nicebox_verify_homepage` | `api_tool.py TOOL` |
+| 多语言名称/排序、整站搬迁、删除和默认入口 | `nicebox_update_language_config`、迁移预检/执行、删除影响/执行、默认入口影响/设置、操作状态等 8 个语言管理工具 | `api_tool.py TOOL --args-json JSON`；搬迁不翻译，删除和默认入口切换必须二次确认 |
 | 页面代码只读能力 | `nicebox_list_pages`、`nicebox_get_page_metadata`、`nicebox_get_page_sections`、`nicebox_get_page_code`、`nicebox_get_page_width_settings`、`nicebox_diagnose_page_components` | `api_tool.py TOOL --args-json JSON` |
+| 页面管理 | `nicebox_get_page_management_detail`、页面排序/设置上级页面/复制/删除影响与删除/显示隐藏/语言影响与变更/文件名/AI生成TDK/页面设置等 12 个管理工具 | `api_tool.py TOOL --args-json JSON`；删除和更改语言要求风险确认，AI生成TDK需确认生成结果后保存 |
 | 页面草稿校验 | `nicebox_validate_page_change`、`nicebox_preview_page_width_settings` | `api_tool.py TOOL --args-json JSON` |
 | 页面预览、保存与回退 | `nicebox_create_page_preview`、`nicebox_create_page_width_preview`、`nicebox_get_page_preview`、`nicebox_abandon_page_preview`、`nicebox_commit_page_change`、`nicebox_commit_page_width_settings`、`nicebox_get_page_change_operation`、`nicebox_list_page_backups`、`nicebox_preview_page_backup`、`nicebox_commit_page_backup` | `api_tool.py TOOL --args-json JSON` |
 | 新增页面分析、草稿、预览和确认创建 | `nicebox_analyze_page_creation`、`nicebox_create_page_draft`、`nicebox_get_page_creation_draft`、`nicebox_abandon_page_creation_draft`、`nicebox_commit_page_creation`、`nicebox_get_page_creation_operation` | `api_tool.py TOOL --args-json JSON` |
@@ -75,6 +77,8 @@ metadata: {"clawdbot":{"emoji":"[MCP]"}}
 `api_tool.py` 的 `--args-json` 使用与对应 MCP 工具相同的字段。例如：
 `python api_tool.py nicebox_get_site_source`，或
 `python api_tool.py nicebox_create_article_category --args-json '{"name":"新闻","parent_id":0}'`。
+页面名称修改的固定格式为：
+`python api_tool.py nicebox_update_page_settings --args-json '{"page_id":123,"changes":{"page_name":"新名称"}}'`。
 
 状态查询、检测和优化重试必须继续使用原 `operation_id` 或 `request_id`，不得因为切换通道重复创建任务。
 

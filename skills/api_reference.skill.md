@@ -70,6 +70,14 @@ Authorization: Bearer YOUR_API_KEY
 | POST | `/faq/deleteCategory` | Permanently delete a confirmed FAQ category branch |
 | POST | `/ai_tools/generateContentCover` | Generate article/product cover or Logo candidate with `aspect_ratio` |
 | GET | `/site_pages/getLanguageList` | List site languages |
+| POST | `/site_languages/updateConfig` | Partially update a language custom name or sort |
+| POST | `/site_languages/previewMigration` | Preview whole-language ownership migration without translating text |
+| POST | `/site_languages/executeMigration` | Execute a confirmed language migration with target conflict mode |
+| GET | `/site_languages/getDeleteImpact` | Inspect all content removed by deleting one language |
+| POST | `/site_languages/delete` | Permanently delete one confirmed non-default language |
+| GET | `/site_languages/getDefaultImpact` | Inspect homepage entry changes before setting a default language |
+| POST | `/site_languages/setDefault` | Set the confirmed target-language homepage as site entry |
+| GET | `/site_languages/getOperation` | Query an idempotent language write operation |
 | GET | `/site_pages/readIndexHtml` | Read index HTML |
 | POST | `/template/initializeData` | Initialize site data |
 | POST | `/ai_tools/getCompanyInfo` | Register company info |
